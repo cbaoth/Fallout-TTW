@@ -8,8 +8,11 @@ array_var aAmmoExplosive
 array_var aMiscs
 array_var aCustomFilter
 array_var aCellFilter
+array_var aActivatorFilter
+array_var aActorContainerFilter
 float fWeightThreshold
 float fValueWeightRatio
+float fTimeLastItemDrop
 ref rPendingRef
 int iPanelIdx
 int bToggled
@@ -40,10 +43,12 @@ int bB42Loot
 int bUnlockedContainers
 int iQtyAutoPick
 int bControlDisabled
+int bCollectWorldItems
 begin GameMode
 	if GetGameRestarted
 SetDebugMode 0
 		SetEventHandler "OnCrosshairOn" aicOnCrosshairOn
+		SetEventHandler "OnDrop" aicOnDrop "first"::player
 		if eval (TypeOf (iHotkey = GetINIFloat "General:iHotkey" "Auto Item Collector.ini")) != "Number"
 			iHotkey = 49
 		endif
@@ -118,6 +123,9 @@ SetDebugMode 0
 	if eval (TypeOf (bWaitOnDyingActors = GetINIFloat "General:bWaitOnDyingActors" "Auto Item Collector.ini")) != "Number"
 		bWaitOnDyingActors = 0
 	endif
+	if eval (TypeOf (bCollectWorldItems = GetINIFloat "General:bCollectWorldItems" "Auto Item Collector.ini")) != "Number"
+		bCollectWorldItems = 0
+	endif
 	aPanels = ar_Construct map
 	array_var aGuns = ar_Construct array
 	array_var aEnergyWeapons = ar_Construct array
@@ -174,8 +182,56 @@ SetDebugMode 0
 			MessageEx "%n is on Cell Filter. Auto Item Collector is OFF." rCell
 		endif
 	endif
+
+    aActivatorFilter = ar_Construct array
+	if eval (ar_Size aTmp = ReadArrayFromFile "data/config/AIC Activator Filter.ini" 1)
+		;print "AIC: aTmp: " + $(aTmp)
+		array_var aActivatorFilter = ar_Construct array
+		forEach array_var aIter <- aTmp
+			;PrintD "AIC: aIter: " + $(aIter[0])
+			if TestExpr (aIter["value"][0]) == 0  ; empty/commented line?
+				continue  ; skip
+			endif
+			ref rActivator = EditorIDToFormID (aIter["value"][0])
+			if eval rActivator == 0 || (GetObjectType rActivator) != 21 ; not a valid editor-id or activator?
+                PrintD "AIC: Unknown or invalid activator EditorID [" + $(aIter["value"][0]) + "] in [AIC Activator Filter.ini], skipping..."
+				continue
+			endif
+			ar_Append aActivatorFilter, rActivator
+		loop
+		aTmp = ar_Null
+		;print "AIC: aActivatorFilter: " + $(aActivatorFilter)
+	else
+		;print "AIC: No Activator Filter found."
+	endif
+
+
+    ; TODO remove, doesn't seem reasonable / as useful as it seemed at the time
+    ;aActorContainerFilter = ar_Construct array
+	;if eval (ar_Size aTmp = ReadArrayFromFile "data/config/AIC Actor & Container Filter.ini" 1)
+	;	;print "AIC: aTmp: " + $(aTmp)
+	;	array_var aActorContainerFilter = ar_Construct array
+	;	forEach array_var aIter <- aTmp
+	;		;print "AIC: aIter: " + $(aIter[0])
+	;		if TestExpr (aIter["value"][0]) == 0  ; empty/commented line?
+	;			continue  ; skip
+	;		endif
+	;		ref rActorContainer = EditorIDToFormID (aIter["value"][0])
+	;		int iType = (GetObjectType rActorContainer)
+	;		if eval rActorContainer == 0 || (iType != 27 && (iType < 42 || iType > 45)) ; not a valid editor-id or actor/container?
+    ;            PrintD "AIC: Unknown or invalid actor/container EditorID [" + $(aIter["value"][0]) + "] in [AIC Actor & Container Filter.ini], skipping..."
+	;			continue
+	;		endif
+	;		ar_Append aActorContainerFilter, rActorContainer
+	;	loop
+	;	aTmp = ar_Null
+	;	;print "AIC: aActorContainerFilter: " + $(aActorContainerFilter)
+	;else
+	;	;print "AIC: No Actor & Container Filter found."
+	;endif
+
+
 	iModIndexRetrievables = GetModIndex "B42Retrievables.esp"
-	iModIndexB42Bows = GetModIndex "B42Bows.esp"
 	bRemovePrefix = IsModLoaded "Universal Item Sorter.esp"
 	ref rArFind = (begin Function {ref rRef}
 		int iK = ar_Size aicMain.aCustomFilter
