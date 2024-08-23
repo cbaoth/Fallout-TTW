@@ -1,0 +1,10 @@
+scn aicGetName
+begin Function {ref rRef}
+	string_var svName = GetName rRef
+	if aicMain.bRemovePrefix
+		svName = sv_RegexReplace svName "|^\~*"
+		svName = sv_RegexReplace svName "|^\S*\:\s"
+	endif
+	setFunctionValue svName
+	sv_Destruct svName
+end

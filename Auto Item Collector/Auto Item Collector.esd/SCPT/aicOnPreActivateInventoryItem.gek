@@ -1,0 +1,4 @@
+scn aicOnPreActivateInventoryItem
+begin Function {ref rBaseItem ref rInvRef int bIsActivationNotPrevented int iActivatedHotkey}
+	SetFunctionValue ((aicMain.bControlDisabled - 1) * -1) ;if 0, prevents the item from being activated (equipped/unequipped, or ingested).
+end

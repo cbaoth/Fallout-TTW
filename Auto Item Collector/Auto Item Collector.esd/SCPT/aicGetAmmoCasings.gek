@@ -1,0 +1,10 @@
+scn aicGetAmmoCasings
+begin Function {array_var aAmmo}
+	array_var aAmmoCasings = ar_Construct array
+	forEach array_var aIter <- aAmmo
+		if eval IsFormValid (ref rAmmoCasing = (GetAmmoCasing (*aIter)))
+			ar_Append aAmmoCasings, (GetAmmoCasing (*aIter))
+		endif
+	loop
+	setFunctionValue (ar_Unique aAmmoCasings)
+end

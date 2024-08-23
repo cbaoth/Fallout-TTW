@@ -1,0 +1,33 @@
+scn aicSortCustomFilter
+begin Function {array_var aSource}
+	array_var aTmp0 = ar_Construct array
+	array_var aTmp1 = ar_Construct array
+	array_var aProduct = ar_Construct array
+	while int ikey < (ar_Size aSource)
+		if eval ((aSource[ikey][0]) == 0)
+			ar_Append aTmp0, (aSource[iKey][1])
+		else
+			ar_Append aTmp1, (aSource[iKey][1])
+		endif
+		iKey += 1
+	loop
+	if TestExpr aTmp0[1]
+		aTmp0 = ar_Unique aTmp0
+	endif
+	if TestExpr aTmp0[1]
+		aTmp0 = ar_Sort aTmp0
+	endif
+	if TestExpr aTmp1[1]
+		aTmp1 = ar_Unique aTmp1
+	endif
+	if TestExpr aTmp1[1]
+		aTmp1 = ar_Sort aTmp1
+	endif
+	if TestExpr aTmp0[0]
+		ar_ForEach aTmp0 ({array_var aIter} => ar_Append aProduct (ar_List 0, *aIter))
+	endif
+	if TestExpr aTmp1[0]
+		ar_ForEach aTmp1 ({aIter} => ar_Append aProduct (ar_List 1, *aIter))
+	endif
+	setFunctionValue ar_DeepCopy aProduct
+end

@@ -1,0 +1,18 @@
+scn aicAddMCMItem
+begin Function {int iEntry, int bEnable, string_var svTitle, int iType, float fValue}
+	string_var svPath = "StartMenu/MCM/*:1/*:" + $iEntry
+	SetUIFloat ($svPath + "/_enable") bEnable
+	SetUIString ($svPath + "/_title") $svTitle
+	SetUIFloat ($svPath + "/_type") iType
+	if iType == 0
+	elseif iType == 2 || iType == 5
+		SetUIFloat ($svPath + "/_value") fValue
+	elseif iType == 3
+		SetUIStringEx ($svPath + "/value/*:1/string") "%k" fValue
+	elseif iType == 6
+		SetUIString ($svPath + "/_textOff") "Enabled"
+		SetUIString ($svPath + "/_textOn") "DELETE"
+		SetUIFloat ($svPath + "/_value") fValue
+	endif
+	sv_Destruct svPath, svTitle
+end

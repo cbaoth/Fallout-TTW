@@ -1,0 +1,347 @@
+scn aicMainScript
+array_var aPanels
+array_var aAmmoGuns
+array_var aAmmoEnergy
+array_var aMiscCaseGuns
+array_var aMiscCaseEnergy
+array_var aAmmoExplosive
+array_var aMiscs
+array_var aCustomFilter
+array_var aCellFilter
+float fWeightThreshold
+float fValueWeightRatio
+ref rPendingRef
+int iPanelIdx
+int bToggled
+int iHotkey
+int bAmmoGuns
+int bAmmoEnergy
+int bAmmoExplosive
+int bMiscRockItLauncher
+int bMiscCaseGuns
+int bMiscCaseEnergy
+int bWeapGrenadesMines
+int bWeapThrowing
+int bHandLoadingItems
+int iCustomFilterKey
+int iCustomFilterButton
+int bUseCustomFilter
+int bCustomFilterOnly
+int bUseCustomExclusiveFilter
+int iFontScale
+int bWaitOnDyingActors
+int bUIDisplay
+int iModIndexRetrievables
+int iModIndexB42Bows
+int bUseValueWeightRatio
+int bRemovePrefix
+int bEncumberCheck
+int bB42Loot
+int bUnlockedContainers
+int iQtyAutoPick
+int bControlDisabled
+begin GameMode
+	if GetGameRestarted
+SetDebugMode 0
+		SetEventHandler "OnCrosshairOn" aicOnCrosshairOn
+		if eval (TypeOf (iHotkey = GetINIFloat "General:iHotkey" "Auto Item Collector.ini")) != "Number"
+			iHotkey = 49
+		endif
+		SetOnKeyDownEventHandler aicToggleSwitch 1 iHotkey
+	endif
+	if GetGameLoaded != 1
+		return
+	endif
+	if eval (TypeOf (bUIDisplay = GetINIFloat "General:bUIDisplay" "Auto Item Collector.ini")) != "Number"
+		bUIDisplay = 1
+	endif
+	if eval (TypeOf (bEncumberCheck = GetINIFloat "General:bEncumberCheck" "Auto Item Collector.ini")) != "Number"
+		bEncumberCheck = 1
+	endif
+	if eval (TypeOf (bUnlockedContainers = GetINIFloat "General:bUnlockedContainers" "Auto Item Collector.ini")) != "Number"
+		bUnlockedContainers = 0
+	endif
+	if eval (TypeOf (fWeightThreshold = GetINIFloat "Ingestible:fWeightThreshold" "Auto Item Collector.ini")) != "Number"
+		fWeightThreshold = 0.26
+	endif
+	if eval (TypeOf (bUseValueWeightRatio = GetINIFloat "General:bUseValueWeightRatio" "Auto Item Collector.ini")) != "Number"
+		bUseValueWeightRatio = 1
+	endif
+	if eval (TypeOf (fValueWeightRatio = GetINIFloat "General:fValueWeightRatio" "Auto Item Collector.ini")) != "Number"
+		fValueWeightRatio = 100.00
+	endif
+	if eval (TypeOf (bAmmoGuns = GetINIFloat "Ammo:bAmmoGuns" "Auto Item Collector.ini")) != "Number"
+		bAmmoGuns = 0
+	endif
+	if eval (TypeOf (bAmmoEnergy = GetINIFloat "Ammo:bAmmoEnergy" "Auto Item Collector.ini")) != "Number"
+		bAmmoEnergy = 0
+	endif
+	if eval (TypeOf (bAmmoExplosive = GetINIFloat "Ammo:bAmmoExplosive" "Auto Item Collector.ini")) != "Number"
+		bAmmoExplosive = 0
+	endif
+	if eval (TypeOf (bMiscRockItLauncher = GetINIFloat "Misc:bMiscRockItLauncher" "Auto Item Collector.ini")) != "Number"
+		bMiscRockItLauncher = 0
+	endif
+	if eval (TypeOf (bMiscCaseGuns = GetINIFloat "Misc:bMiscCaseGuns" "Auto Item Collector.ini")) != "Number"
+		bMiscCaseGuns = 0
+	endif
+	if eval (TypeOf (bMiscCaseEnergy = GetINIFloat "Misc:bMiscCaseEnergy" "Auto Item Collector.ini")) != "Number"
+		bMiscCaseEnergy = 0
+	endif
+	if eval (TypeOf (bHandLoadingItems = GetINIFloat "Misc:bHandLoadingItems" "Auto Item Collector.ini")) != "Number"
+		bHandLoadingItems = 0
+	endif
+	if eval (TypeOf (bWeapGrenadesMines = GetINIFloat "Weapon:bWeapGrenadesMines" "Auto Item Collector.ini")) != "Number"
+		bWeapGrenadesMines = 0
+	endif
+	if eval (TypeOf (bWeapThrowing = GetINIFloat "Weapon:bWeapThrowing" "Auto Item Collector.ini")) != "Number"
+		bWeapThrowing = 0
+	endif
+	if eval (TypeOf (bUseCustomFilter = GetINIFloat "CustomFilter:bUseCustomFilter" "Auto Item Collector.ini")) != "Number"
+		bUseCustomFilter = 1
+	endif
+	if eval (TypeOf (bUseCustomExclusiveFilter = GetINIFloat "CustomFilter:bUseCustomExclusiveFilter" "Auto Item Collector.ini")) != "Number"
+		bUseCustomExclusiveFilter = 1
+	endif
+	if eval (TypeOf (bCustomFilterOnly = GetINIFloat "CustomFilter:bCustomFilterOnly" "Auto Item Collector.ini")) != "Number"
+		bCustomFilterOnly = 0
+	endif
+	if eval (TypeOf (iCustomFilterKey = GetINIFloat "CustomFilter:iCustomFilterKey" "Auto Item Collector.ini")) != "Number"
+		iCustomFilterKey = 42
+	endif
+	if eval (TypeOf (iCustomFilterButton = GetINIFloat "CustomFilter:iCustomFilterButton" "Auto Item Collector.ini")) != "Number"
+		iCustomFilterButton = 64
+	endif
+	if eval (TypeOf (iFontScale = GetINIFloat "General:iFontScale" "Auto Item Collector.ini")) != "Number"
+		iFontScale = 100
+	endif
+	if eval (TypeOf (bWaitOnDyingActors = GetINIFloat "General:bWaitOnDyingActors" "Auto Item Collector.ini")) != "Number"
+		bWaitOnDyingActors = 0
+	endif
+	aPanels = ar_Construct map
+	array_var aGuns = ar_Construct array
+	array_var aEnergyWeapons = ar_Construct array
+	array_var aExplosiveWeapons = ar_Construct array
+	forEach array_var aIter <- (array_var aTmp = GetLoadedTypeArray 40)
+		if eval IsPlayable (*aIter) != 1
+			continue
+		endif
+		if eval (int iSkill = (GetWeaponSkill (*aIter))) == 41 ;Guns
+			ar_Append aGuns, (*aIter)
+		elseif iSkill == 34 ;EnergyWeapons
+			ar_Append aEnergyWeapons, (*aIter)
+;		elseif iSkill == 33 ;BigGuns
+		elseif iSkill == 35 ;Explosives
+			ar_Append aExplosiveWeapons, (*aIter)
+		endif
+	loop
+	aAmmoGuns = Call aicGetAmmo aGuns
+	aAmmoEnergy = Call aicGetAmmo aEnergyWeapons
+	aAmmoExplosive = Call aicGetAmmo aExplosiveWeapons
+	aMiscCaseGuns = Call aicGetAmmoCasings aAmmoGuns
+	aMiscCaseEnergy = Call aicGetAmmoCasings aAmmoEnergy
+	aMiscs = Call aicGetMiscItems bHandLoadingItems
+	aAmmoEnergy = Call aicGetAmmo aEnergyWeapons
+	aAmmoExplosive = Call aicGetAmmo aExplosiveWeapons
+	aGuns = aEnergyWeapons = aExplosiveWeapons = aAmmoGuns = aIter = aTmp = ar_Null
+	aCustomFilter = ar_Construct array
+	if FileExists "config/AIC Custom Filter.ini"
+		string_var svString = ReadStringFromFile "data\config\AIC Custom Filter.ini" 1 1
+		if eval svString != "" && svString != "EMPTY"
+			forEach aIter <- (aTmp = ReadArrayFromFile "data\config\AIC Custom Filter.ini" 1)
+				if testExpr int iKey = aIter["value"][0]
+					if testExpr svString = aIter["value"][1]
+						ar_Append aCustomFilter, (ar_List iKey, svString)
+					endif
+				else
+					ar_Append aCustomFilter, (ar_List 0, (aIter["value"][0]))
+				endif
+			loop
+		endif
+		sv_Destruct svString
+		if testExpr aCustomFilter[0][0]
+			aCustomFilter = Call aicSortCustomFilter (ar_DeepCopy aCustomFilter)
+		else
+			WriteStringToFile "data\config\AIC Custom Filter.ini" 0 "EMPTY"
+		endif
+	endif
+	bToggled = 1
+	aCellFilter = ar_Construct array
+	if eval (ar_Size aTmp = ReadArrayFromFile "data/config/AIC Cell Filter.ini" 1)
+		ar_ForEach aTmp ({aIter} => ar_Append aCellFilter, (aIter["value"][0]))
+		aTmp = ar_Null
+		if eval !(bToggled = ((ar_Find ref rCell, aCellFilter) < 0))
+			MessageEx "%n is on Cell Filter. Auto Item Collector is OFF." rCell
+		endif
+	endif
+	iModIndexRetrievables = GetModIndex "B42Retrievables.esp"
+	iModIndexB42Bows = GetModIndex "B42Bows.esp"
+	bRemovePrefix = IsModLoaded "Universal Item Sorter.esp"
+	ref rArFind = (begin Function {ref rRef}
+		int iK = ar_Size aicMain.aCustomFilter
+		string_var svRef = Call aicGetName rRef
+		while (iK -= 1) > -1
+			if eval svRef == aicMain.aCustomFilter[iK][1]
+				setFunctionValue 1
+				break
+			endif
+		loop
+		sv_Destruct svRef
+	end)
+	ref rMBoxRecipe = (begin Function {int iB}
+		if iB < 2
+			ar_ForEach (array_var aR = GetRecipeInputForms (aicMain.rPendingRef)) ({array_var aI} => Call aicArErase (*aI))
+			if iB == 0
+				ar_ForEach aR ({aI} => ar_Append aicMain.aCustomFilter, (ar_List 0, (Call aicGetName (*aI))))
+				aicMain.aCustomFilter = Call aicSortCustomFilter (ar_DeepCopy aicMain.aCustomFilter)
+			endif
+			Call aicWriteArray
+		endif
+		aicMain.rPendingRef = 0
+	end)
+	ref rMBoxRecipeRemove = (begin Function {int iB}
+		if iB != 1
+			Call aicArErase aicMain.rPendingRef
+			Call aicWriteArray
+		endif
+		aicMain.rPendingRef = 0
+	end)
+	ref rMBoxRecipeAdd = (begin Function {int iB}
+		if iB != 1
+			Call aicArErase aicMain.rPendingRef
+			ar_Append aicMain.aCustomFilter, (Call aicGetName aicMain.rPendingRef)
+			aicMain.aCustomFilter = Call aicSortCustomFilter (ar_DeepCopy aicMain.aCustomFilter)
+			Call aicWriteArray
+		endif
+		aicMain.rPendingRef = 0
+	end)
+	ref rMBoxPipRemove = (begin Function {int iBtn}
+		if iBtn != 1
+			Call aicArErase aicMain.rPendingRef
+			Call aicWriteArray
+		endif
+		aicMain.rPendingRef = 0
+	end)
+	ref rMBoxPipAdd = (begin Function {int iBtn}
+		if iBtn != 2
+			Call aicArErase aicMain.rPendingRef
+			ar_Append aicMain.aCustomFilter, (ar_List iBtn, (Call aicGetName aicMain.rPendingRef))
+			aicMain.aCustomFilter = Call aicSortCustomFilter (ar_DeepCopy aicMain.aCustomFilter)
+			Call aicWriteArray
+		endif
+		aicMain.rPendingRef = 0
+	end)
+	SetEventHandler "OnCellEnter" (begin Function {ref rCell}
+		if eval !(aCellFilter)
+			return
+		endif
+		if eval bToggled != ((ar_Find rCell, aCellFilter) < 0)
+			if eval (bToggled = (bToggled - 1) * -1)
+				MessageEx "Auto Item Collector is ON."
+			else
+				MessageEx "%q%n%q is on Cell Filter. Auto Item Collector is OFF." rCell
+			endif
+		endif
+	end)
+	SetOnControlDownEventHandler aicOnControlDown 1 5
+	SetEventHandlerAlt "ShowOff:OnPreActivateInventoryItem" aicOnPreActivateInventoryItem
+	if IsModLoaded "The Mod Configuration Menu.esp"
+		ListAddForm (GetFormFromMod "The Mod Configuration Menu.esp" "AE6") aicMCMItem
+		StartQuest aicMCM
+	endif
+	bB42Loot = FileExists "nvse\plugins\scripts\ln_B42Loot.txt"
+	if 0 == BaseGetItemCount aicAntiAICIdol (GetFormFromMod "FalloutNV.esm" "15F1EA") ;vMojaveExpressControlBox
+		BaseAddItem aicAntiAICIdol 12 (GetFormFromMod "FalloutNV.esm" "15F1EA")
+	endif
+	if 0 == BaseGetItemCount aicAntiAICIdol (GetFormFromMod "TaleOfTwoWastelands.esm" "8F6A") ;TTWPonyExpressControlBox
+		BaseAddItem aicAntiAICIdol 12 (GetFormFromMod "TaleOfTwoWastelands.esm" "8F6A")
+	endif
+	iPanelIdx = 6
+	while (iPanelIdx -= 1) > -1
+		if GetUIFloatAlt ("HUDMainMenu\AIC\aicPanel" + $iPanelIdx + "\alpha") != 0
+			SetUIFloatAlt ("HUDMainMenu\AIC\aicPanel" + $iPanelIdx + "\alpha") 0
+		endif
+	loop
+	if GetUIFloat "HUDMainMenu\AIC\visible" != 1
+		SetUIFloatAlt "HUDMainMenu\AIC\visible" 1
+	endif
+end
+begin MenuMode
+	if GetUIFloat "HUDMainMenu\AIC\visible" != 0
+		SetUIFloatAlt "HUDMainMenu\AIC\visible" 0
+		CallWhen ({} => SetUIFloatAlt "HUDMainMenu\AIC\visible" 1) ({} => MenuMode != 1)
+	endif
+	if eval (int iMenuCode = GetActiveMenuMode) == 1002 ;Inventory
+	elseif iMenuCode == 1077 ;Recipe
+	elseif iMenuCode == 1001 ;Message
+	else
+		return
+	endif
+	if eval !(IsKeyPressed iCustomFilterKey) && !(IsButtonPressed iCustomFilterButton)
+		if bControlDisabled
+			bControlDisabled = 0
+		endif
+		return
+	endif
+	if bControlDisabled != 1
+		bControlDisabled = 1
+	endif
+	if eval !(IsControlPressed 5) && !(IsKeyPressed 256) ;Left Mouse Button
+		return
+	endif
+	if rPendingRef != 0
+		return
+	endif
+	if iMenuCode == 1077
+		if eval !(ref rRecipe = GetRecipeMenuSelection)
+			return
+		endif
+		array_var aRecipeInputForms = GetRecipeInputForms rRecipe
+		if eval (ar_Size aRecipeInputForms) > 1
+			rPendingRef = rRecipe
+			svString = sv_Construct "^Auto Item Collector^Crafting %n requires following items:%r" rRecipe
+			ar_ForEach aRecipeInputForms ({aIter} => svString += sv_Construct "%r- %n%{ (on filter)%}" (*aIter) (Call rArFind (*aIter)))
+			svString += "|Add them to Inclusive Filter|Remove them from Custom Filters|Cancel"
+			MessageBoxExAlt rMBoxRecipe $svString
+			sv_Destruct svString
+		else
+			rPendingRef = aRecipeInputForms[0]
+			if eval (Call rArFind rPendingRef)
+				MessageBoxExAlt rMBoxRecipeRemove "^Auto Item Collector^Crafting %n requires %q%n%q, which is already on Custom Filters.|Remove it from Custom Filters|Cancel" rRecipe, rPendingRef
+			else
+				MessageBoxExAlt rMBoxRecipeAdd "^Auto Item Collector^Crafting %n requires %q%n%q.|Add it to Custom Filters|Cancel" rRecipe, rPendingRef
+			endif
+		endif
+		return
+	endif
+	if GetSelectedItemRef == 0
+		return
+	endif
+	rPendingRef = GetSelectedItemRef.GetBaseForm
+	iKey = ar_Size aCustomFilter
+	while (iKey -= 1) > -1
+		if eval (GetName rPendingRef) == aCustomFilter[iKey][1]
+			iKey = 1
+			break
+		endif
+	loop
+	if eval (float fWeight = GetWeight rPendingRef)
+		if player.HasPerk (GetFormFromMod "FalloutNV.esm" "14609B") ;Pack Rat perk
+			if fWeight <= 2
+				fWeight *= 0.5
+			endif
+		endif
+		float fVWRatio = (GetValueAlt rPendingRef) / fWeight
+		if iKey == 1
+			MessageBoxExAlt rMBoxPipRemove "^Auto Item Collector^%q%n%q is already on Custom Filters.%rThe value-to-weight ratio is %0.1f.|Remove it from Custom Filters|Cancel" rPendingRef fVWRatio
+		else
+			MessageBoxExAlt rMBoxPipAdd "^Auto Item Collector^%q%n%q is not on Custom Filters.%rThe value-to-weight ratio is %0.1f.|Add it to Inclusive Filter|Add it to Exclusive Filter|Cancel" rPendingRef fVWRatio
+		endif
+	else
+		if iKey == 1
+			MessageBoxExAlt rMBoxPipRemove "^Auto Item Collector^%q%n%q is already on Custom Filters.%rIt has no weight.|Remove it from Custom Filters|Cancel" rPendingRef
+		else
+			MessageBoxExAlt rMBoxPipAdd "^Auto Item Collector^%q%n%q is not on Custom Filters.%rIt has no weight.|Add it to Inclusive Filter|Add it to Exclusive Filter|Cancel" rPendingRef
+		endif
+	endif
+end

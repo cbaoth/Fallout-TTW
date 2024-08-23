@@ -1,0 +1,6 @@
+scn aicOnAdd
+begin Function {ref rBaseItem, ref rNewOwner}
+	if IsReference (ref rItemRef = GetAddedItemRefShowOff)
+		aicMain.iQtyAutoPick += (rItemRef.GetRefCount)
+	endif
+end

@@ -1,0 +1,289 @@
+scn aicOnCrosshairOn
+begin Function {ref rCrosshairRef}
+	if aicMain.bToggled != 1
+		return
+	endif
+	if IsReference rCrosshairRef != 1
+		return
+	endif
+	GetReticlePosAlt (float fPosX) (float fPosY) (float fPosZ)
+	if rCrosshairRef.IsActor
+		if aicMain.bWaitOnDyingActors != 1
+			if rCrosshairRef.GetDead != 1
+				return
+			endif
+		else
+			if eval (rCrosshairRef.GetLifeState == 1)
+				CallWhen (begin Function {ref rRef}
+					if GetCrosshairRef == rRef
+						Call aicOnCrosshairOn rRef
+					endif
+				end) ({rRef} => rRef.GetLifeState == 2 || GetCrosshairRef != rRef) 23 rCrosshairRef
+			endif
+			if eval (rCrosshairRef.GetLifeState != 2)
+				return
+			endif
+		endif
+	elseif eval ((int iType = rCrosshairRef.GetObjectType) == 27)
+		if rCrosshairRef.GetLocked
+			if aicMain.bUnlockedContainers
+				CallWhen (begin Function {ref rRef}
+					if GetCrosshairRef == rRef
+						Call aicOnCrosshairOn rRef
+					endif
+				end) ({rRef} => rRef.GetLocked != 1 || GetCrosshairRef != rRef) 3 rCrosshairRef
+			endif
+			return
+		endif
+		if rCrosshairRef.IsCrimeOrEnemy
+			return
+		endif
+		if rCrosshairRef.HasVariable "Opened"
+			if rCrosshairRef.GetVariable "Opened" != 1
+				return
+			endif
+		endif
+		if rCrosshairRef.GetItemCount aicAntiAICIdol > 0
+			MessageEx "%q%z%q is found. Auto Item Collector is disabled on this container." ($aicAntiAICIdol)
+			return
+		endif
+	elseif iType == 21
+		if eval !(rCrosshairRef = rCrosshairRef.GetAshPileSource)
+			return
+		endif
+	else
+		return
+	endif
+	if eval !(array_var aAllItems = rCrosshairRef.GetAllItems 0 1 0 0)
+		return
+	endif
+	int bHasPackRat = player.HasPerk (GetFormFromMod "FalloutNV.esm" "14609B")
+	array_var aFilteredItems = ar_Construct array
+	int iIdx = ar_Size aAllItems
+	while (iIdx -= 1) > -1
+		ref rItem = aAllItems[iIdx]
+		if aicMain.bUseCustomFilter
+			int iKey = int iFlag = 0
+			while iKey < (ar_Size aicMain.aCustomFilter)
+				if eval (Call aicGetName rItem) == (aicMain.aCustomFilter[iKey][1])
+					iFlag = (aicMain.aCustomFilter[iKey][0]) + 1
+					break
+				endif
+				iKey += 1
+			loop
+			if iFlag == 1
+				ar_Append aFilteredItems, rItem
+				continue
+			endif
+			if iFlag == 2 && aicMain.bUseCustomExclusiveFilter
+				continue
+			endif
+			if aicMain.bCustomFilterOnly
+				continue
+			endif
+		endif
+		if eval (float fWeight = GetWeight rItem)
+			if bHasPackRat
+				if fWeight <= 2
+					fWeight *= 0.5
+				endif
+			endif
+			if aicMain.bUseValueWeightRatio
+				if eval aicMain.fValueWeightRatio <= (GetValueAlt rItem) / fWeight
+					ar_Append aFilteredItems, rItem
+					continue
+				endif
+			endif
+		endif
+		if eval ((iType = GetObjectType rItem) == 31) ;Misc
+			if eval (ar_Find rItem, aicMain.aMiscs) > -1
+				ar_Append aFilteredItems, rItem
+				continue
+			endif
+			if aicMain.bMiscCaseGuns
+				if eval (ar_Find rItem, aicMain.aMiscCaseGuns) > -1
+					ar_Append aFilteredItems, rItem
+					continue
+				endif
+			endif
+			if aicMain.bMiscCaseEnergy
+				if eval (ar_Find rItem, aicMain.aMiscCaseEnergy) > -1
+					ar_Append aFilteredItems, rItem
+					continue
+				endif
+			endif
+			if aicMain.bMiscRockItLauncher
+				if eval (IsRefInList (GetFormFromMod "FalloutNV.esm" "6B20D"), rItem)
+					ar_Append aFilteredItems, rItem
+					continue
+				endif
+			endif
+			if aicMain.bWeapThrowing
+				if aicMain.iModIndexRetrievables == GetSourceModIndex rItem
+					ar_Append aFilteredItems, rItem
+					continue
+				endif
+				if aicMain.iModIndexB42Bows == GetSourceModIndex rItem
+					ar_Append aFilteredItems, rItem
+					continue
+				endif
+			endif
+			continue
+		endif
+		if iType == 47 ;Ingestible
+			if fWeight < aicMain.fWeightThreshold
+				ar_Append aFilteredItems, rItem
+			endif
+			continue
+		endif
+		if iType == 41 ;Ammo
+			if eval (ar_Find rItem, aicMain.aAmmoEnergy) > -1
+				if aicMain.bAmmoEnergy
+					ar_Append aFilteredItems, rItem
+				endif
+				continue
+			endif
+			if eval (ar_Find rItem, aicMain.aAmmoExplosive) > -1
+				if aicMain.bAmmoExplosive
+					ar_Append aFilteredItems, rItem
+				endif
+				continue
+			endif
+			if aicMain.bAmmoGuns
+				ar_Append aFilteredItems, rItem
+			endif
+			continue
+		endif
+		if iType == 40 ;Weapon
+			if aicMain.bWeapGrenadesMines
+				if eval ((iType = GetWeaponType rItem) == 10) || iType == 11 || iType == 12
+					ar_Append aFilteredItems, rItem
+					continue
+				endif
+			endif
+			if aicMain.bWeapThrowing
+				if iType == 13
+					ar_Append aFilteredItems, rItem
+					continue
+				endif
+			endif
+			continue
+		endif
+		if iType == 116 || iType == 108 ;Faction Currency, Casino Chip
+			ar_Append aFilteredItems, rItem
+		endif
+	loop
+	if eval !(ar_Size aFilteredItems)
+		return
+	endif
+	array_var aCollected = ar_Construct stringmap
+	array_var aSkipped = ar_Construct array
+	float fFreeRoom = (player.GetActorValue CarryWeight) - (player.GetActorValue InventoryWeight)
+	iIdx = ar_Size aFilteredItems
+	while (iIdx -= 1) > -1
+		ref rFilteredItem = aFilteredItems[iIdx]
+		string_var svItem = GetName rFilteredItem
+		if eval !(fWeight = GetWeight rFilteredItem) || aicMain.bEncumberCheck != 1
+			aCollected[$svItem] = (rCrosshairRef.GetItemCount rFilteredItem)
+			if eval !(ref rForB42Loot) && aicMain.bB42Loot
+				rForB42Loot = rFilteredItem
+			endif
+			if eval ref rSound == 0
+				rSound = GetPickupSound rFilteredItem
+			endif
+		elseif bHasPackRat
+			if fWeight <= 2
+				fWeight *= 0.5
+			endif
+		endif
+		array_var aInvRefsForItem = rCrosshairRef.GetInvRefsForItem rFilteredItem
+		iKey = -1
+		while (iKey += 1) < (ar_Size aInvRefsForItem)
+			rItem = aInvRefsForItem[iKey]
+			if fWeight == 0 || aicMain.bEncumberCheck != 1
+				rItem.RemoveMeIRAlt 0 0 player
+				continue
+			endif
+			if fFreeRoom - fWeight <= -1
+				ar_Append aSkipped, rFilteredItem
+				break
+			endif
+			if eval (float fVal = (fFreeRoom + 1) / fWeight) < (int iRefCount = rItem.GetRefCount)
+				iRefCount = fVal
+				ar_Append aSkipped, rFilteredItem
+				int bBreak = 1
+			endif
+			fFreeRoom -= ((iRefCount = Ceil iRefCount) * fWeight)
+			if 0 == testExpr (aCollected[$svItem] += iRefCount)
+				aCollected[$svItem] = iRefCount
+				if eval !(rForB42Loot) && aicMain.bB42Loot
+					rForB42Loot = rFilteredItem
+				endif
+			endif
+			if rSound == 0
+				rSound = GetPickupSound rFilteredItem
+			endif
+			rItem.RemoveMeIRAlt iRefCount 0 player
+			if bBreak != 0
+				bBreak = 0
+				break
+			endif
+		loop
+	loop
+	sv_Destruct svItem
+	if eval (ar_Size aSkipped)
+		if eval (ar_Size aSkipped) > 1
+			aSkipped = ar_Unique aSkipped
+		endif
+		if eval (int iEntries = (ar_Size aSkipped)) == 1
+			MessageEx "Cannot auto-collect %n." (aSkipped[0])
+		elseif iEntries == 2
+			MessageEx "Cannot auto-collect %n and %n." (aSkipped[0]) (aSkipped[1])
+		else
+			MessageEx "Cannot auto-collect %n and other items." (aSkipped[0])
+		endif
+	endif
+	if eval !(iEntries = (ar_Size aCollected))
+		return
+	endif
+	string_var svKey = ar_First aCollected
+	while int iCount < iEntries
+		svItem += sv_Construct "+ %z x %g%r" svKey (aCollected[$svKey])
+		svKey = ar_Next aCollected, svKey
+		iCount += 1
+	loop
+	sv_Destruct svKey
+	if rSound
+		PlaySound rSound
+	else
+		PlaySound (GetFormFromMod "FalloutNV.esm" "194E5") ; UIItemGenericUp
+	endif
+	if rForB42Loot && aicMain.bB42Loot
+		DispatchEventAlt "B42GV" rForB42Loot
+	endif
+	if GetCrosshairRef == rCrosshairRef
+		UpdateCrosshairPrompt
+	endif
+	if aicMain.bUIDisplay != 1
+		sv_Destruct svItem
+		return
+	endif
+	if iEntries > 10
+		iEntries = 10
+	endif
+	if eval ((aicMain.iPanelIdx += 1) > 5)
+		aicMain.iPanelIdx = 0
+	endif
+	string_var svPanel = "HUDMainMenu\AIC\aicPanel" + $aicMain.iPanelIdx
+	SetUIStringAlt ($svPanel + "\string") $svItem
+	SetUIFloatGradual ($svPanel + "\_yMod") -128 -176 (2.4 + (0.3 * iEntries))
+	SetUIFloatGradual ($svPanel + "\alpha") 384 1 (1.6 + (0.3 * iEntries))
+	if GetUIFloatAlt ($svPanel + "\zoom") != aicMain.iFontScale
+		SetUIFloatAlt ($svPanel + "\zoom") aicMain.iFontScale
+	endif
+	sv_Destruct svPanel, svItem
+	aicMain.aPanels[aicMain.iPanelIdx] = (ar_List fPosX, fPosY, fPosZ)
+	if GetQuestRunning aicPanelUpdater != 1
+		StartQuest aicPanelUpdater
+	endif
+end

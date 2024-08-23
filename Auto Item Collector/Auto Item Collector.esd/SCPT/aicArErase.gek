@@ -1,0 +1,11 @@
+scn aicArErase
+begin Function {ref rRef}
+	int iKey = ar_Size aicMain.aCustomFilter
+	string_var svRef = GetName rRef
+	while (iKey -= 1) > -1
+		if eval svRef == aicMain.aCustomFilter[iKey][1]
+			ar_Erase aicMain.aCustomFilter, iKey
+		endif
+	loop
+	sv_Destruct svRef
+end

@@ -1,0 +1,393 @@
+scn aicMCMScript
+int bRevCustomFilter
+int bRevCellFilter
+begin GameMode
+	if GetGameLoaded != 1
+		return
+	endif
+	bRevCustomFilter = bRevCellFilter = 0
+	ref rWriteString = {} => WriteStringToFile "data\config\AIC Custom Filter.ini" 0 "EMPTY"
+	ref rRevCustomFilter = (begin Function {array_var aT}
+		if eval (ar_Find 1, aT) >= 0
+			int iK = ar_Size aT
+			while (iK -= 1) > -1
+				if eval (aT[iK])
+					ar_Erase aicMain.aCustomFilter, iK
+				endif
+			loop
+			if testExpr aicMain.aCustomFilter[0][0]
+				if testExpr aicMain.aCustomFilter[1][0]
+					aicMain.aCustomFilter = Call aicSortCustomFilter (ar_DeepCopy aicMain.aCustomFilter)
+				endif
+				Call aicWriteArray
+			else
+				Call rWriteString
+			endif
+		endif
+		array_var aCustomFilterIndex = ar_Null
+		bRevCustomFilter = 0
+	end)
+	ref rRevCellFilter = (begin Function {array_var aT}
+		if eval (ar_Find 1, aT) >= 0
+			int iKey = ar_Size aT
+			while (iKey -= 1) > -1
+				if eval (aT[iKey])
+					ar_Erase aicMain.aCellFilter, iKey
+				endif
+			loop
+			if testExpr aicMain.aCellFilter[0][0]
+				WriteArrayToFile "data\config\AIC Cell Filter.ini" 0 aicMain.aCellFilter 1
+			else
+				WriteStringToFile "data\config\AIC Cell Filter.ini" 0 "EMPTY"
+			endif
+		endif
+		array_var aCellFilterIndex = ar_Null
+		bRevCellFilter = 0
+	end)
+end
+begin MenuMode 1013
+	if eval (GetUIFloat "StartMenu/MCM/_ActiveMod" != GetModIndex "Auto Item Collector.esp")
+		return
+	endif
+	if eval int iOption != GetUIFloat "StartMenu/MCM/_ActiveOption"
+		iOption = GetUIFloat "StartMenu/MCM/_ActiveOption"
+	endif
+	if eval float fValue != GetUIFloat "StartMenu/MCM/_Value"
+		fValue = GetUIFloat "StartMenu/MCM/_Value"
+	endif
+	if GetUIFloat "StartMenu/MCM/*:5/SubMenu1/_enable" == 0
+		SetUIFloat "StartMenu/MCM/_ActiveSubMenu" 1
+		SetUIFloat "StartMenu/MCM/*:5/SubMenu1/_enable" 1
+		SetUIString "StartMenu/MCM/*:5/SubMenu1/text/string" "Main settings"
+		SetUIString "StartMenu/MCM/*:8/SubTitle1/string" "Main settings"
+		SetUIFloat "StartMenu/MCM/*:5/SubMenu2/_enable" 1
+		SetUIString "StartMenu/MCM/*:5/SubMenu2/text/string" "Custom Inclusive Filter"
+		SetUIString "StartMenu/MCM/*:8/SubTitle2/string" "Custom Inclusive Filter"
+		SetUIFloat "StartMenu/MCM/*:5/SubMenu3/_enable" 1
+		SetUIString "StartMenu/MCM/*:5/SubMenu3/text/string" "Custom Exclusive Filter"
+		SetUIString "StartMenu/MCM/*:8/SubTitle3/string" "Custom Exclusive Filter"
+		SetUIFloat "StartMenu/MCM/*:5/SubMenu4/_enable" 1
+		SetUIString "StartMenu/MCM/*:5/SubMenu4/text/string" "Custom Cell Filter"
+		SetUIString "StartMenu/MCM/*:8/SubTitle4/string" "Custom Cell Filter"
+	endif
+	if eval int iSubMenu != GetUIFloat "StartMenu/MCM/_ActiveSubMenu"
+		iSubMenu = GetUIFloat "StartMenu/MCM/_ActiveSubMenu"
+	endif
+	if GetUIFloat "StartMenu/MCM/_Reset"
+		SetUIFloat "StartMenu/MCM/_Reset" 0
+		if iSubMenu == 1
+			SetUIFloat "StartMenu/MCM/*:1/_columns" 1
+			Call aicAddMCMItem 1, 1, "Hotkey for ON/OFF", 3, aicMain.iHotkey
+			Call aicAddMCMItem 2, 1, "UI Display", 5, aicMain.bUIDisplay
+			Call aicAddMCMItem 3, 1, "Wait on dying actors", 5, aicMain.bWaitOnDyingActors
+			Call aicAddMCMItem 4, 1, "Encumber check", 5, aicMain.bEncumberCheck
+			Call aicAddMCMItem 5, 1, "Unlocked containers", 5, aicMain.bUnlockedContainers
+			Call aicAddMCMItem 6, 1, "Font scale", 2, aicMain.iFontScale
+			Call aicAddMCMItem 8, 1, "Ammo for guns", 5, aicMain.bAmmoGuns
+			Call aicAddMCMItem 9, 1, "Ammo for energy weapons", 5, aicMain.bAmmoEnergy
+			Call aicAddMCMItem 10, 1, "Ammo for explosive weapons", 5, aicMain.bAmmoExplosive
+			Call aicAddMCMItem 11, 1, "Ammo casings for guns", 5, aicMain.bMiscCaseGuns
+			Call aicAddMCMItem 12, 1, "Drained cells/packs/tanks", 5, aicMain.bMiscCaseEnergy
+			Call aicAddMCMItem 13, 1, "Hand loading items", 5, aicMain.bHandLoadingItems
+			Call aicAddMCMItem 14, 1, "Ammo for Rock-It Launcher", 5, aicMain.bMiscRockItLauncher
+			Call aicAddMCMItem 15, 1, "Grenades/Mines", 5, aicMain.bWeapGrenadesMines
+			Call aicAddMCMItem 16, 1, "Throwing Weapons", 5, aicMain.bWeapThrowing
+			Call aicAddMCMItem 18, 1, "Weight limit for AID items", 2, aicMain.fWeightThreshold
+			Call aicAddMCMItem 20, 1, "Use value-to-Weight ratio", 5, aicMain.bUseValueWeightRatio
+			Call aicAddMCMItem 21, 1, "Value-to-Weight ratio", 2, aicMain.fValueWeightRatio
+		elseif iSubMenu == 2
+			SetUIFloat "StartMenu/MCM/*:1/_columns" 1
+			Call aicAddMCMItem 1, 1, "Use Inclusive Filter", 5, aicMain.bUseCustomFilter
+			Call aicAddMCMItem 2, 1, "Use Custom Filters Only", 5, aicMain.bCustomFilterOnly
+			Call aicAddMCMItem 3, 1, "Hotkey for adding items to Custom Filters", 3, aicMain.iCustomFilterKey
+			if eval !(ar_Size aicMain.aCustomFilter)
+				Call aicAddMCMItem 5, 1, "Inclusive Filter is empty.", 0, 0
+			else
+				if eval !(aCustomFilterIndex)
+					aCustomFilterIndex = ar_Init (ar_Size aicMain.aCustomFilter) 0
+				endif
+				array_var aTmp = ar_Construct array
+				int iMCMItemIdx = 5
+				int iKey = 0
+				while ikey < (ar_Size aicMain.aCustomFilter)
+					if eval ((aicMain.aCustomFilter[ikey][0]) == 0)
+						Call aicAddMCMItem iMCMItemIdx, 1, $(aicMain.aCustomFilter[ikey][1]), 6, (aCustomFilterIndex[iKey])
+						aTmp[(iMCMItemIdx - 5)] = iKey
+						iMCMItemIdx += 1
+					endif
+					iKey += 1
+				loop
+				if iMCMItemIdx == 5
+					Call aicAddMCMItem 5, 1, "Inclusive Filter is empty.", 0, 0
+				endif
+			endif
+		elseif iSubMenu == 3
+			SetUIFloat "StartMenu/MCM/*:1/_columns" 1
+			Call aicAddMCMItem 1, 1, "Use Exclusive filter", 5, aicMain.bUseCustomExclusiveFilter
+			if eval !(ar_Size aicMain.aCustomFilter)
+				Call aicAddMCMItem 3, 1, "Exclusive Filter is empty.", 0, 0
+			else
+				if eval !(aCustomFilterIndex)
+					aCustomFilterIndex = ar_Init (ar_Size aicMain.aCustomFilter) 0
+				endif
+				aTmp = ar_Construct array
+				iMCMItemIdx = 3
+				iKey = 0
+				while ikey < (ar_Size aicMain.aCustomFilter)
+					if eval ((aicMain.aCustomFilter[ikey][0]) == 1)
+						Call aicAddMCMItem iMCMItemIdx, 1, $(aicMain.aCustomFilter[ikey][1]), 6, (aCustomFilterIndex[iKey])
+						aTmp[(iMCMItemIdx - 3)] = iKey
+						iMCMItemIdx += 1
+					endif
+					iKey += 1
+				loop
+				if iMCMItemIdx == 3
+					Call aicAddMCMItem 3, 1, "Exclusive Filter is empty.", 0, 0
+				endif
+			endif
+		elseif iSubMenu == 4
+			SetUIFloat "StartMenu/MCM/*:1/_columns" 1
+			if eval !(ar_Size aicMain.aCellFilter)
+				Call aicAddMCMItem 1, 1, "Custom Cell Filter is empty.", 0, 0
+			else
+				if eval !(aCellFilterIndex)
+					aCellFilterIndex = ar_Init (ar_Size aicMain.aCellFilter) 0
+				endif
+				iKey = -1
+				while (ikey += 1) < (ar_Size aicMain.aCellFilter)
+					string_var svString = sv_Construct "%n (%i)" (aicMain.aCellFilter[ikey]) (aicMain.aCellFilter[ikey])
+					Call aicAddMCMItem (iKey + 1), 1, svString, 6, (aCellFilterIndex[iKey])
+				loop
+				sv_Destruct svString
+			endif
+		endif
+	elseif GetUIFloat "StartMenu/MCM/_Default"
+		SetUIFloat "StartMenu/MCM/_Default" 0
+		SetUIFloat "StartMenu/MCM/_Reset" 1
+		if iSubMenu == 1
+			if aicMain.iHotkey != 49
+				SetOnKeyDownEventHandler aicToggleSwitch 0 aicMain.iHotkey
+				SetINIFloat "General/iHotkey" (aicMain.iHotkey = 49)
+				SetOnKeyDownEventHandler aicToggleSwitch 1 aicMain.iHotkey
+			endif
+			SetINIFloat "General/bUIDisplay" (aicMain.bUIDisplay = 1)
+			SetINIFloat "General/bWaitOnDyingActors" (aicMain.bWaitOnDyingActors = 0)
+			SetINIFloat "General/bEncumberCheck" (aicMain.bEncumberCheck = 1)
+			SetINIFloat "General/bUnlockedContainers" (aicMain.bUnlockedContainers = 0)
+			SetINIFloat "General/iFontScale" (aicMain.iFontScale = 100)
+			SetINIFloat "Ammo/bAmmoGuns" (aicMain.bAmmoGuns = 0)
+			SetINIFloat "Ammo/bAmmoEnergy" (aicMain.bAmmoEnergy = 0)
+			SetINIFloat "Ammo/bAmmoExplosive" (aicMain.bAmmoExplosive = 0)
+			SetINIFloat "Misc/bMiscRockItLauncher" (aicMain.bMiscRockItLauncher = 0)
+			SetINIFloat "Misc/bMiscCaseGuns" (aicMain.bMiscCaseGuns = 0)
+			SetINIFloat "Misc/bMiscCaseEnergy" (aicMain.bMiscCaseEnergy = 0)
+			SetINIFloat "Misc/bHandLoadingItems" (aicMain.bHandLoadingItems = 0)
+			aicMain.aMiscs = Call aicGetMiscItems aicMain.bHandLoadingItems
+			SetINIFloat "Weapon/bWeapGrenadesMines" (aicMain.bWeapGrenadesMines = 0)
+			SetINIFloat "Weapon/bWeapThrowing" (aicMain.bWeapThrowing = 0)
+		elseif iSubMenu == 2
+			SetINIFloat "CustomFilter/bUseCustomFilter" (aicMain.bUseCustomFilter = 1)
+			SetINIFloat "CustomFilter/bCustomFilterOnly" (aicMain.bCustomFilterOnly = 1)
+			SetINIFloat "Ingestible/fWeightThreshold" (aicMain.fWeightThreshold = 0.26)
+			SetINIFloat "General/bUseValueWeightRatio" (aicMain.bUseValueWeightRatio = 0)
+			SetINIFloat "General/fValueWeightRatio" (aicMain.fValueWeightRatio = 100)
+		endif
+	elseif GetUIFloat "StartMenu/MCM/_NewValue"
+		SetUIFloat "StartMenu/MCM/_NewValue" 0
+		SetUIFloat "StartMenu/MCM/_Reset" 1
+		if iSubMenu == 1
+			if iOption == 1
+				if aicMain.iHotkey != fValue
+					SetOnKeyDownEventHandler aicToggleSwitch 0 aicMain.iHotkey
+					SetINIFloat "General/iHotkey" (aicMain.iHotkey = fValue)
+					SetOnKeyDownEventHandler aicToggleSwitch 1 aicMain.iHotkey
+				endif
+			elseif iOption == 2
+				SetINIFloat "General/bUIDisplay" (aicMain.bUIDisplay = fValue)
+			elseif iOption == 3
+				SetINIFloat "General/bWaitOnDyingActors" (aicMain.bWaitOnDyingActors = fValue)
+			elseif iOption == 4
+				SetINIFloat "General/bEncumberCheck" (aicMain.bEncumberCheck = fValue)
+			elseif iOption == 5
+				SetINIFloat "General/bUnlockedContainers" (aicMain.bUnlockedContainers = fValue)
+			elseif iOption == 6
+				SetINIFloat "General/iFontScale" (aicMain.iFontScale = fValue)
+			elseif iOption == 8
+				SetINIFloat "Ammo/bAmmoGuns" (aicMain.bAmmoGuns = fValue)
+			elseif iOption == 9
+				SetINIFloat "Ammo/bAmmoEnergy" (aicMain.bAmmoEnergy = fValue)
+			elseif iOption == 10
+				SetINIFloat "Ammo/bAmmoExplosive" (aicMain.bAmmoExplosive = fValue)
+			elseif iOption == 11
+				SetINIFloat "Misc/bMiscCaseGuns" (aicMain.bMiscCaseGuns = fValue)
+			elseif iOption == 12
+				SetINIFloat "Misc/bMiscCaseEnergy" (aicMain.bMiscCaseEnergy = fValue)
+			elseif iOption == 13
+				SetINIFloat "Misc/bHandLoadingItems" (aicMain.bHandLoadingItems = fValue)
+				aicMain.aMiscs = Call aicGetMiscItems aicMain.bHandLoadingItems
+			elseif iOption == 14
+				SetINIFloat "Misc/bMiscRockItLauncher" (aicMain.bMiscRockItLauncher = fValue)
+			elseif iOption == 15
+				SetINIFloat "Weapon/bWeapGrenadesMines" (aicMain.bWeapGrenadesMines = fValue)
+			elseif iOption == 16
+				SetINIFloat "Weapon/bWeapThrowing" (aicMain.bWeapThrowing = fValue)
+			elseif iOption == 18
+				SetINIFloat "Ingestible/fWeightThreshold" (aicMain.fWeightThreshold = fValue)
+			elseif iOption == 20
+				SetINIFloat "General/bUseValueWeightRatio" (aicMain.bUseValueWeightRatio = fValue)
+			elseif iOption == 21
+				SetINIFloat "General/fValueWeightRatio" (aicMain.fValueWeightRatio = fValue)
+			endif
+		elseif iSubMenu == 2
+			if iOption == 1
+				SetINIFloat "CustomFilter/bUseCustomFilter" (aicMain.bUseCustomFilter = fValue)
+			elseif iOption == 2
+				SetINIFloat "CustomFilter/bCustomFilterOnly" (aicMain.bCustomFilterOnly = fValue)
+			elseif iOption == 3
+				SetINIFloat "CustomFilter/iCustomFilterKey" (aicMain.iCustomFilterKey = fValue)
+			elseif iOption > 4
+				aCustomFilterIndex[(aTmp[(iOption - 5)])] = fValue
+				if bRevCustomFilter != 1
+					bRevCustomFilter = 1
+					CallWhen ({aCustomFilterIndex} => Call rRevCustomFilter aCustomFilterIndex) ({} => MenuMode != 1) 1 aCustomFilterIndex
+				endif
+			endif
+		elseif iSubMenu == 3
+			if iOption == 1
+				SetINIFloat "CustomFilter/bUseCustomExclusiveFilter" (aicMain.bUseCustomExclusiveFilter = fValue)
+			elseif iOption > 2
+				aCustomFilterIndex[(aTmp[(iOption - 3)])] = fValue
+				if bRevCustomFilter != 1
+					bRevCustomFilter = 1
+					CallWhen ({aCustomFilterIndex} => Call rRevCustomFilter aCustomFilterIndex) ({} => MenuMode != 1) 1 aCustomFilterIndex
+				endif
+			endif
+		elseif iSubMenu == 4
+			if iOption > 0
+				aCellFilterIndex[(iOption - 1)] = fValue
+				if bRevCellFilter != 1
+					bRevCellFilter = 1
+					CallWhen ({aCellFilterIndex} => Call rRevCellFilter aCellFilterIndex) ({} => MenuMode != 1) 1 aCellFilterIndex
+				endif
+			endif
+		endif
+	elseif GetUIFloat "StartMenu/MCM/_ShowList" == 1
+		SetUIFloat "StartMenu/MCM/_ShowList" 2
+	elseif GetUIFloat "StartMenu/MCM/_ShowScale" == 1
+		SetUIFloat "StartMenu/MCM/_ShowScale" 2
+		if iSubMenu == 1
+			if iOption == 5
+				SetUIFloat "StartMenu/MCM/_Value" aicMain.iFontScale
+				SetUIFloat "StartMenu/MCM/_ValueDecimal" 0
+				SetUIFloat "StartMenu/MCM/_ValueIncrement" 1
+				SetUIFloat "StartMenu/MCM/_ValueMax" 300
+				SetUIFloat "StartMenu/MCM/_ValueMin" 10
+				SetUIString "StartMenu/MCM/*:2/_title" "Font Scale"
+			elseif iOption == 18
+				SetUIFloat "StartMenu/MCM/_Value" aicMain.fWeightThreshold
+				SetUIFloat "StartMenu/MCM/_ValueDecimal" 2
+				SetUIFloat "StartMenu/MCM/_ValueIncrement" 0.01
+				SetUIFloat "StartMenu/MCM/_ValueMax" 10
+				SetUIFloat "StartMenu/MCM/_ValueMin" 0
+				SetUIString "StartMenu/MCM/*:2/_title" "Max Weight Limit for AID Items"
+			elseif iOption == 21
+				SetUIFloat "StartMenu/MCM/_Value" aicMain.fValueWeightRatio
+				SetUIFloat "StartMenu/MCM/_ValueDecimal" 1
+				SetUIFloat "StartMenu/MCM/_ValueIncrement" 0.1
+				SetUIFloat "StartMenu/MCM/_ValueMax" 1000
+				SetUIFloat "StartMenu/MCM/_ValueMin" 0
+				SetUIString "StartMenu/MCM/*:2/_title" "Value-to-Weight Ratio for All Items"
+			endif
+		endif
+	elseif GetUIFloat "StartMenu/MCM/_DefaultScale"
+		SetUIFloat "StartMenu/MCM/_DefaultScale" 0
+		SetUIFloat "StartMenu/MCM/_ShowScale" 2
+		if iSubMenu == 1
+			if iOption == 5
+				SetUIFloat "StartMenu/MCM/_Value" 100
+			elseif iOption == 18
+				SetUIFloat "StartMenu/MCM/_Value" 0.26
+			elseif iOption == 20
+				SetUIFloat "StartMenu/MCM/_Value" 100
+			endif
+		endif
+	endif
+	if eval int iMouseover == GetUIFloat "StartMenu/MCM/*:1/_optionID"
+		return
+	endif
+	if eval GetUIFloat "StartMenu/MCM/MCM_Info/visible" != ((iMouseover = GetUIFloat "StartMenu/MCM/*:1/_optionID") != 0)
+		SetUIFloat "StartMenu/MCM/MCM_Info/visible" (iMouseover != 0)
+	endif
+	if iMouseover == 0
+		return
+	endif
+	if iSubMenu == 1
+		if iMouseover == 1
+			string_var svString = "A hotkey for ON/OFF the auto-item-collecting scripts."
+		elseif iMouseover == 2
+			svString = "Display the UI messsages or not."
+		elseif iMouseover == 3
+			svString = "Wait on dying actors for a few seconds before auto-loot."
+		elseif iMouseover == 4
+			svString = "If checked, the script will stop looting weighted items when the player is over-encumbered or about to become over-encumbered."
+		elseif iMouseover == 5
+			svString = "Auto-loot unlocked-containers immediately after they got unlocked."
+		elseif iMouseover == 6
+			svString = "Font scale, in percentage."
+		elseif iMouseover == 8
+			svString = "Enables/disables auto-collecting ammo for guns."
+		elseif iMouseover == 9
+			svString = "Enables/disables auto-collecting ammo for energy weapons."
+		elseif iMouseover == 10
+			svString = "Enables/disables auto-collecting ammo for explosive weapons."
+		elseif iMouseover == 11
+			svString = "Enables/disables auto-collecting ammo casings for guns."
+		elseif iMouseover == 12
+			svString = "Enables/disables auto-collecting drained cells/packs/tanks."
+		elseif iMouseover == 13
+			svString = "Enables/disables auto-collecting hand loading items."
+		elseif iMouseover == 14
+			svString = "Enables/disables auto-collecting misc items that can be used as Rock-It Launcher ammo."
+		elseif iMouseover == 15
+			svString = "Enables/disables auto-collecting hand grenades and mines."
+		elseif iMouseover == 16
+			svString = "Enables/disables auto-collecting throwing weapons, including arrows."
+		elseif iMouseover == 18
+			svString = "AID items, like foods and chems, that are heavier than this will be ignored."
+		elseif iMouseover == 20
+			svString = "Enables/disables value-to-Weight ratio for all items."
+		elseif iMouseover == 21
+			svString = "Items that are more valuable than this will be collected no matter how much they weigh."
+		else
+			svString = "%e"
+		endif
+	elseif iSubMenu == 2
+		if iMouseover == 1
+			svString = "Enables/disables Custom Filter."
+		elseif iMouseover == 2
+			svString = "Bypasses Main settings. Makes only Custom Filter effective."
+		elseif iMouseover == 3
+			svString = "In Pipboy, clicking an item while holding this key makes the item to be added to Custom Filter."
+		else
+			svString = "Mark the entry DELETE to remove the item from Custom Filter."
+		endif
+	elseif iSubMenu == 3
+		if iMouseover == 1
+			svString = "Enables/disables Custom Exclusive Filter."
+		else
+			svString = "Mark the entry DELETE to remove the item from Custom Exclusive Filter."
+		endif
+	elseif iSubMenu == 4
+		if iMouseover
+			svString = "Mark the entry DELETE to remove the item from Custom Cell Filter."
+		endif
+	endif
+	if eval svString == "%e"
+		if GetUIFloat "StartMenu/MCM/*:9/visible" != 0
+			SetUIFloat "StartMenu/MCM/*:9/visible" 0
+		endif
+	else
+		SetUIString "StartMenu/MCM/*:9/string" $svString
+	endif
+	sv_Destruct svString
+end

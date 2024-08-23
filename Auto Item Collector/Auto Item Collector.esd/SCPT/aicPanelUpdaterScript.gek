@@ -1,0 +1,40 @@
+scn aicPanelUpdaterScript
+begin GameMode
+	if GetGameLoaded
+		array_var aExpired = ar_Construct array
+	endif
+	if eval !(ar_Size aicMain.aPanels)
+		int iKey = -1
+		while (iKey += 1) < 6
+			if GetUIFloatAlt ("HUDMainMenu\AIC\aicPanel" + $iKey + "\alpha") != 0
+				SetUIFloatAlt ("HUDMainMenu\AIC\aicPanel" + $iKey + "\alpha") 0
+			endif
+		loop
+		StopQuest aicPanelUpdater
+		return
+	endif
+	iKey = ar_First aicMain.aPanels
+	while iKey > -1
+		string_var svPanel = "HUDMainMenu\AIC\aicPanel" + $iKey
+		if eval ((GetUIFloatAlt ($svPanel + "\alpha")) == 1)
+			SetUIFloatAlt ($svPanel + "\alpha") 0
+			ar_Append array_var aExpired, iKey
+		else
+			if eval (int bIsOnScreen = WorldToScreen (float fScreenX) (float fScreenY) (float fScreenZ) (aicMain.aPanels[iKey][0]) (aicMain.aPanels[iKey][1]) (aicMain.aPanels[iKey][2]) 0)
+				SetUIFloatAlt ($svPanel + "\_ScreenX") fScreenX
+				SetUIFloatAlt ($svPanel + "\_ScreenY") fScreenY
+			endif
+			if GetUIFloatAlt ($svPanel + "\visible") != bIsOnScreen
+				SetUIFloatAlt ($svPanel + "\visible") bIsOnScreen
+			endif
+		endif
+		iKey = ar_Next aicMain.aPanels, iKey
+	loop
+	sv_Destruct svPanel
+	if eval (iKey = ar_Size aExpired)
+		while (iKey -= 1) > -1
+			ar_Erase aicMain.aPanels, aExpired[iKey]
+		loop
+		ar_Resize aExpired 0
+	endif
+end

@@ -1,0 +1,1 @@
+All props to the original author [ebizoe](https://www.nexusmods.com/newvegas/users/627838) of the [Auto Item Collector](https://www.nexusmods.com/newvegas/mods/77775) mod, I just made a few changes to suit my needs.

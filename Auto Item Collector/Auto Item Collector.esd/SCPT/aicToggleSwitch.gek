@@ -1,0 +1,50 @@
+scn aicToggleSwitch
+begin Function {int iKey}
+	if MenuMode
+		return
+	endif
+	ref rMBoxCellRemove = (begin Function {int iB}
+		if iB == 0
+			ref rCell = player.GetParentCell
+			ar_Erase aicMain.aCellFilter, (ar_Find rCell, aicMain.aCellFilter)
+			if testExpr aicMain.aCellFilter[0]
+				WriteArrayToFile "data\config\AIC Cell Filter.ini" 0 aicMain.aCellFilter 1
+			else
+				WriteStringToFile "data\config\AIC Cell Filter.ini" 0 "EMPTY"
+			endif
+			if aicMain.bToggled != 1
+				aicMain.bToggled = 1
+				MessageEx "Auto Item Collector is ON."
+			endif
+		endif
+	end)
+	ref rMBoxCellAdd = (begin Function {int iB}
+		if iB == 0
+			ar_Append aicMain.aCellFilter, (player.GetParentCell)
+			WriteArrayToFile "data\config\AIC Cell Filter.ini" 0 aicMain.aCellFilter 1
+			if aicMain.bToggled != 0
+				aicMain.bToggled = 0
+				MessageEx "Auto Item Collector is OFF."
+			endif
+		endif
+	end)
+	ref rMBoxCellMenu = (begin Function {}
+		ref rCell = player.GetParentCell
+		if eval (ar_Find rCell, aicMain.aCellFilter) >= 0
+			MessageBoxExAlt rMBoxCellRemove "^Auto Item Collector^%q%n%q is on Cell Filter.|Remove it from Cell Filter|Cancel" rCell
+		else
+			MessageBoxExAlt rMBoxCellAdd "^Auto Item Collector^%q%n%q is not on Cell Filter.|Add it to Cell Filter|Cancel" rCell
+		endif
+	end)
+	CallWhen (begin Function {iKey}
+		if eval float fTimer > 1
+			Call rMBoxCellMenu
+			return
+		endif
+		if eval (aicMain.bToggled = (aicMain.bToggled - 1) * -1)
+			MessageEx "Auto Item Collector is ON."
+		else
+			MessageEx "Auto Item Collector is OFF."
+		endif
+	end) ({iKey} => (fTimer += GetSecondsPassed) > 1 || IsKeyPressed iKey != 1) 19 iKey
+end

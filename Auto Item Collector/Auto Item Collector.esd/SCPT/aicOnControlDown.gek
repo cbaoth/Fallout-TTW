@@ -1,0 +1,34 @@
+scn aicOnControlDown
+begin function {int iControlID}
+	if eval IsReference (ref rRef = GetCrosshairRef) != 1
+		return
+	endif
+	if eval $rRef == "<No Name>"
+		return
+	endif
+	if rRef.GetType == 21
+		if eval (GetActivatorSoundActivate (rRef.GetBaseObject) == (GFFM "FalloutNV.esm" "178878")) ;OBJPickPlant
+		elseif eval sv_RegexMatch (rRef.GetModelPath) ".*Punga[fF]ruit[pP]lant.*"
+		elseif eval (rRef.GBO) == (GFFM "DeadMoney.esm" "1011DDF")
+		else
+			return
+		endif
+		if rRef.GetVariable "State" != 0
+			return
+		endif
+		int bIsACTI = 1
+	elseif rRef.IsGrabbable
+	else
+		return
+	endif
+	aicMain.iQtyAutoPick = 0
+	SetEventHandlerAlt "ShowOff:OnAdd" aicOnAdd 2::player
+	int bIsStealing = (rRef.IsCrimeOrEnemy)
+	float fTimer
+	CallWhen (begin function {rRef bIsACTI bIsStealing}
+		fTimer = 0
+		if IsControlPressed 5
+			Call aicAutoPickup rRef bIsACTI bIsStealing
+		endif
+	end) ({} => (fTimer += 1) > 30 || IsControlPressed 5 != 1) 21 (rRef.GetBaseObject) bIsACTI bIsStealing
+end

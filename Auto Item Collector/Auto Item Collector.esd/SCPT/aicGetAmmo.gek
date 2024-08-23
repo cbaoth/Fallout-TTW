@@ -1,0 +1,23 @@
+scn aicGetAmmo
+begin Function {array_var aWeapons}
+	array_var aAmmo = ar_Construct array
+	ref rRockItLauncherAmmo = (GetFormFromMod "FalloutNV.esm" "6B20D")
+	forEach array_var aIter <- aWeapons
+		if eval IsFormValid (ref rAmmo = (GetWeaponAmmo (*aIter))) != 1
+			continue
+		endif
+		if GetType rAmmo != 85 ;Form List
+			ar_Append aAmmo, rAmmo
+			continue
+		endif
+		if rAmmo == rRockItLauncherAmmo
+			continue
+		endif
+		forEach ref rForm <- rAmmo
+			if IsFormValid rForm
+				ar_Append aAmmo, rForm
+			endif
+		loop
+	loop
+	setFunctionValue (ar_Unique aAmmo)
+end

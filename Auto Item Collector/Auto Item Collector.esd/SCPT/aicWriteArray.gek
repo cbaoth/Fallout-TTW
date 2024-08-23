@@ -1,0 +1,4 @@
+scn aicWriteArray
+begin Function {}
+	WriteArrayToFile "data\config\AIC Custom Filter.ini" 0 aicMain.aCustomFilter 1
+end

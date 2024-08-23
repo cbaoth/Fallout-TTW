@@ -1,0 +1,41 @@
+scn aicAutoPickup
+begin function {ref rRef int bIsACTI int bIsStealing}
+	GetReticlePosAlt (float fPosX) (float fPosY) (float fPosZ)
+	if eval (int iKey = ar_Size (array_var aRefs = player.GetRefs (GetObjectType rRef) 2 bIsACTI 600)) > 0
+		while (iKey -= 1) > -1
+			ref rItem = aRefs[iKey]
+			if rItem.GetBaseObject != rRef
+				continue
+			endif
+			if rItem.IsCrimeOrEnemy > bIsStealing
+				continue
+			endif
+			rItem.Activate player 1
+		loop
+	endif
+	RemoveEventHandler "ShowOff:OnAdd" aicOnAdd
+	if aicMain.iQtyAutoPick == 0
+		return
+	endif
+	if aicMain.bUIDisplay != 1
+		aicMain.iQtyAutoPick = 0
+		return
+	endif
+	if eval ((aicMain.iPanelIdx += 1) > 5)
+		aicMain.iPanelIdx = 0
+	endif
+	string_var svItem = sv_Construct "+ %z x %g" ($rRef) aicMain.iQtyAutoPick
+	string_var svPanel = "HUDMainMenu\AIC\aicPanel" + $aicMain.iPanelIdx
+	SetUIStringAlt ($svPanel + "\string") ($svItem)
+	SetUIFloatGradual ($svPanel + "\_yMod") -128 -176 2.4
+	SetUIFloatGradual ($svPanel + "\alpha") 384 1 1.6
+	if GetUIFloatAlt ($svPanel + "\zoom") != aicMain.iFontScale
+		SetUIFloatAlt ($svPanel + "\zoom") aicMain.iFontScale
+	endif
+	aicMain.aPanels[aicMain.iPanelIdx] = (ar_List fPosX, fPosY, fPosZ)
+	if GetQuestRunning aicPanelUpdater != 1
+		StartQuest aicPanelUpdater
+	endif
+	sv_Destruct svItem, svPanel
+	aicMain.iQtyAutoPick = 0
+end

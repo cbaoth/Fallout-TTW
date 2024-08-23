@@ -1,0 +1,20 @@
+<visible><copy src="AIC" trait="visible" /></visible>
+<depth>10</depth>
+<_ScreenX>0</_ScreenX>
+<_ScreenY>0</_ScreenY>
+<_yMod>0</_yMod>
+<x>
+	<copy src="screen()" trait="width"/>
+	<mul><copy src="me()" trait="_ScreenX"/></mul>
+</x>
+<y>
+	<copy src="screen()" trait="height"/>
+	<mul><copy src="me()" trait="_ScreenY"/></mul>
+	<add><copy src="me()" trait="_yMod"/></add>
+</y>
+<string></string>
+<alpha>0</alpha>
+<font><copy src="AIC" trait="font" /></font>
+<justify><copy src="AIC" trait="justify" /></justify>
+<systemcolor><copy src="AIC" trait="systemcolor" /></systemcolor>
+<zoom>100</zoom>

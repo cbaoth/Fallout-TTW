@@ -1,0 +1,24 @@
+<rect name="AIC">
+	<visible>0</visible>
+	<font>6</font>
+	<justify>&center;</justify>
+	<systemcolor>1</systemcolor>
+	<text name="aicPanel0">
+		<include src="AIC\aicPanel.xml" />
+	</text>
+	<text name="aicPanel1">
+		<include src="AIC\aicPanel.xml" />
+	</text>
+	<text name="aicPanel2">
+		<include src="AIC\aicPanel.xml" />
+	</text>
+	<text name="aicPanel3">
+		<include src="AIC\aicPanel.xml" />
+	</text>
+	<text name="aicPanel4">
+		<include src="AIC\aicPanel.xml" />
+	</text>
+	<text name="aicPanel5">
+		<include src="AIC\aicPanel.xml" />
+	</text>
+</rect>

@@ -1,0 +1,19 @@
+scn aicGetMiscItems
+begin Function {int bHandLoadingItems}
+	; Caps001, NVSSCap, Lockpick, PrewarMoney
+	array_var aItems = ar_List "F", "1017C6", "A", "34067"
+	if bHandLoadingItems
+		; PowderPistol, PowderRifle, BoxPrimers50MG, BoxPrimersLargePistol, BoxPrimersLargeRifle, BoxPrimersShotshell, BoxPrimersSmallPistol, BoxPrimersSmallRifle, Primer50MG, PrimerLargePistol, PrimerLargeRifle, PrimerShotshell, PrimerSmallPistol, PrimerSmallRifle, JarPistolPowder, JarRiflePowder, Lead, BoxCase308, BoxCase357Magnum, BoxCase44Magnum, BoxCase4570Govt, BoxCase50MG, BoxCase10mm, BoxCase127mm, BoxCase556mm, BoxCase5mm, BoxCase9mm
+		array_var aHandLoadingItems = ar_List "140AB2", "140AB3", "166656", "166658", "166657", "173F7E", "16665B", "166659", "140AAC", "140AAA", "140AAB", "140AEC", "140AA9", "140AE0", "16665D", "16665C", "140C2F", "166D55", "166D53", "166D54"
+		ar_Cat aItems aHandLoadingItems
+		aHandLoadingItems = ar_List "166D57", "166D56", "166D4E", "166D4F", "166D52", "166D51", "166D50"
+		ar_Cat aItems aHandLoadingItems
+	endif
+	array_var aMiscItems = ar_Construct array
+	ar_ForEach aItems ({array_var aIter} => ar_Append aMiscItems, (GetFormFromMod "FalloutNV.esm" (*aIter)))
+	if IsModLoaded "Zeta.esm"
+		ar_Append aMiscItems, (GetFormFromMod "Zeta.esm" "A9E6") ;DLC05AlienCrystalLarge
+		ar_Append aMiscItems, (GetFormFromMod "Zeta.esm" "A9E9") ;DLC05AlienCrystalSmall
+	endif
+	setFunctionValue aMiscItems
+end

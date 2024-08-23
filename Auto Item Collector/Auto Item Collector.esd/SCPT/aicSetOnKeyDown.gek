@@ -1,0 +1,32 @@
+scn aicSetOnKeyDown
+begin function {int iKey int bController}
+	if bController
+;		if iKey != GetControl 5
+;			string_var svEvent = "OnButtonDown:" + $iKey
+;			RemoveEventHandler $svEvent (begin function {iKey}
+;				Call aicAutoPickupButton iKey
+;			end)
+;			iKey = GetControl 5
+;		endif
+;		svEvent = "OnButtonDown:" + $iKey
+;		SetEventHandler $svEvent (begin function {iKey}
+;			Call aicAutoPickupButton iKey
+;		end)
+;		sv_Destruct svEvent
+;		SetFunctionValue iKey
+;		return
+	endif
+	if iKey != GetControl 5
+		string_var svEvent = "OnKeyDown:" + $iKey
+		RemoveEventHandler $svEvent (begin function {iKey}
+			Call aicAutoPickupKey iKey
+		end)
+		iKey = GetControl 5
+	endif
+	svEvent = "OnKeyDown:" + $iKey
+	SetEventHandler $svEvent (begin function {iKey}
+		Call aicAutoPickupKey iKey
+	end)
+	sv_Destruct svEvent
+	SetFunctionValue iKey
+end
