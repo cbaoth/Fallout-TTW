@@ -1,0 +1,7 @@
+scn aicOnDrop
+begin Function {ref rOldOwner, ref rItemRef}
+    if (MenuMode 1002) ; dropped from pipboy inventory menu?
+        PrintD "AIC: OnDrop " + $(rItemRef) + " [RefFormId=" + $(GetFormIDString rItemRef) + ", BaseFormID=" + $(GetFormIDString (rItemRef.GetBaseObject)) + "] at [fTimeLastItemDrop=" + $(aicMain.fTimeLastItemDrop) + "]"
+		aicMain.fTimeLastItemDrop = GetSessionTime
+    endif
+end
