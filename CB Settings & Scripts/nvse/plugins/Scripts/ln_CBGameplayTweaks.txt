@@ -1,0 +1,215 @@
+; code: language=geckscript
+
+; Debug hints:
+; tdt -> monitor console output (show console whenever it is updated)
+
+Print "Applying CBGameplayTweaks..."
+
+;{{{ = UI ===================================================================
+; TODO currently added to JLMCrosshairEventHandler, but could be separated (no patch necessary)
+; ; CB: Mark locked container activator name1 e.g. "[Locked - Very Easy]" in red
+; if rObject.IsActor == 0
+;     if iLocked == 0
+;         SetUIFloat "HUDMainMenu/InfoWrap/Info/justify_center_text:1/VUI+ActivatorName/systemcolor" 1
+;     else
+;         SetUIFloat "HUDMainMenu/InfoWrap/Info/justify_center_text:1/VUI+ActivatorName/systemcolor" 2
+;     endif
+; endif
+
+;}}} = END: UI ==============================================================
+
+;{{{ = Items ================================================================
+;{{{ - Injestibles ----------------------------------------------------------
+Print "Tweaking Injestibles..."
+; Restore original -50 rads to RadAway, from -25 only (sawyerbatty).
+; Has it's reasons, but I prefer it this way.
+SetNthEffectTraitNumeric RadAway 0 0 50  ; magnitude 25 to 50
+;SetNthEffectTraitNumeric RadAway 1 2 10  ; duration 5 to 10
+;SetNthEffectTraitNumeric RadAway 2 0 10  ; magnitude 5 to 10
+;SetNthEffectTraitNumeric RadAway 3 2 10  ; duration 5 to 10 (HC)
+;}}} - END: Injestibles -----------------------------------------------------
+
+;{{{ - Weapons --------------------------------------------------------------
+Print "Tweaking Weapons..."
+
+; https://geckwiki.com/index.php/Weapon_Mods
+; Check which mod slots the currently equipped weapon has (no result if null)
+;GetWeaponItemMod 1 (PlayerRef.GetEquippedObject 5)
+;GetWeaponItemMod 2 (PlayerRef.GetEquippedObject 5)
+;GetWeaponItemMod 3 (PlayerRef.GetEquippedObject 5)
+; Get ID of equipped weapon
+;GetEditorID (PlayerRef.GetEquippedObject 5)
+
+; Toggle mod(s) of currently equipped item, bit flags: 1/2/4 -> mod slot 1/2/3
+; PlayerRef.SetEquippedWeaponModFlags 1  ; set mod 1 (2 and 3 are off)
+; PlayerRef.SetEquippedWeaponModFlags 3  ; set mods 1 and 2 (3 is off)
+
+; Get/set damage for currently equipped weapon
+;GetAttackDamage (PlayerRef.GetEquippedObject 5)
+
+; ----------------------------------------------------------------------------
+; Make .22 Silenced Pistal stronger, since it's my main weapon
+; TODO remove, added a custom item mod instead
+; ----------------------------------------------------------------------------
+; TTW:  DMG=12, Crit%Mult=3, CritDmg=30, LumbDmgMult=1, FireRate=1,
+;       Spread=2/0.5, FireRate=1, Range=128/768, AP=17
+; Mods: DMG=17
+;
+; Custom weapon created with slightly increased damage and 3 mod slots
+;SetAttackDamage 25 WeapNVSilenced22Pistol
+; Allow silencer mod option to certain weapons (somewhat fitting existing
+; mods from other weapons + their mod effect)
+; Lever action rifle, had no 3rd mod
+;SetWeaponItemMod DLC04WeapRifle 3 ModNVVattasitnarosinriosenrastrst  tttttttatrstrstrmintRifleSilencer
+;SetWeaponItemModEffect DLC04WeapRifle 3 11
+;PlayerRef.SetEquippedWeaponModFlags 3  ; aquip and run command to add mod 3
+;SetWeaponItemModEffect (PlayerRef.GetEquippedObject 5) 1 1 ; Increase Weapon Damage
+;SetWeaponItemModEffect WeapNVSilenced22Pistol 3 1 ; Decrease Spread
+;SetWeaponItemModEffect WeapNVSilenced22Pistol 1 14 ; Increase Zoom (Scope)
+; ARC = 0 (straight line)
+; Spread
+
+; ----------------------------------------------------------------------------
+; Terrible Shotgun, add suppressor for more stealth variety
+; ----------------------------------------------------------------------------
+; No shotgun silencer mod, so I'll just add a heavy sniper one
+; Replaces mod 1 which is weight reduction (don't care for that)
+;SetWeaponItemMod WeapShotgunCombat 1 NVDLC05ModNVAntiMaterielRifleSuppressor
+;SetWeaponItemModEffect WeapShotgunCombat 1 11
+SetWeaponItemMod WeapUniqueTerribleShotgun 1 NVDLC05ModNVAntiMaterielRifleSuppressor
+SetWeaponItemModEffect WeapUniqueTerribleShotgun 1 11
+; original sniper-rifle suppressor sound (don't be confused by the naming)
+SetWeaponSound WeapUniqueTerribleShotgun 9 WPNRifleVarmintModFire3D
+SetWeaponSound WeapUniqueTerribleShotgun 11 WPNRifleVarmintModFire2D
+; original anti-materiel rifle suppressor sound (don't be confused by the naming)
+;SetWeaponSound WeapUniqueTerribleShotgun 9 WPNRifleSniperModFire3D
+;SetWeaponSound WeapUniqueTerribleShotgun 11 WPNRifleSniperModFire2D
+;PlayerRef.SetEquippedWeaponModFlags 1  ; aquip and run command to add mod 1
+
+; ----------------------------------------------------------------------------
+; Blackhawk, add suppressor for more stealth variety
+; ----------------------------------------------------------------------------
+SetWeaponItemMod WeapUniqueBlackhawk 1 ModNVDLC0245AutoPistolSilencer
+SetWeaponItemModEffect WeapUniqueBlackhawk 1 11
+; original sniper-rifle suppressor sound (don't be confused by the naming)
+SetWeaponSound WeapUniqueBlackhawk 9 WPNPistol45SilencedFire3D
+SetWeaponSound WeapUniqueBlackhawk 11 WPNPistol45SilencedFire2D
+;PlayerRef.SetEquippedWeaponModFlags 1  ; aquip and run command to add mod 1
+
+; ----------------------------------------------------------------------------
+; Anchorage Snipe Rifle, add suppressor for stealth run (vs. pistol only)
+; ----------------------------------------------------------------------------
+SetWeaponItemMod DLC02WeapSniperRifle 1 ModNVSniperRifleSuppressor
+SetWeaponItemModEffect DLC02WeapSniperRifle 1 11
+; original sniper-rifle suppressor sound (don't be confused by the naming)
+SetWeaponSound DLC02WeapSniperRifle 9 WPNRifleVarmintModFire3D
+SetWeaponSound DLC02WeapSniperRifle 11 WPNRifleVarmintModFire2D
+
+; ----------------------------------------------------------------------------
+; 12.7mm Pistol, add suppressor just for testing (most likely never used)
+; ----------------------------------------------------------------------------
+SetWeaponItemMod WeapNV127mmPistol 1 ModNV127mmPistolSilencer
+SetWeaponItemModEffect WeapNV127mmPistol 1 11
+; original sniper-rifle suppressor sound (don't be confused by the naming)
+SetWeaponSound WeapNV127mmPistol 9 WPNRifleVarmintModFire3D
+SetWeaponSound WeapNV127mmPistol 11 WPNRifleVarmintModFire2D
+;PlayerRef.SetEquippedWeaponModFlags 1  ; aquip and run command to add mod 1
+
+; ----------------------------------------------------------------------------
+; Anti-Materiel Rifle, restore suppressor (removed by a mod)
+; ----------------------------------------------------------------------------
+;SetWeaponItemMod WeapNVAntiMaterielRifle 1 NVDLC05ModNVAntiMaterielRifleCarbonFiberParts
+;SetWeaponItemModEffect WeapNVAntiMaterielRifle 1 4
+;SetWeaponItemMod WeapNVAntiMaterielRifle 2 NVDLC05ModNVAntiMaterielRifleCustomBolt
+;SetWeaponItemModEffect WeapNVAntiMaterielRifle 2 8
+SetWeaponItemMod WeapNVAntiMaterielRifle 3 NVDLC05ModNVAntiMaterielRifleSuppressor
+SetWeaponItemModEffect WeapNVAntiMaterielRifle 3 11
+; original sniper-rifle suppressor sound (don't be confused by the naming)
+SetWeaponSound DLC02WeapSniperRifle 9 WPNRifleVarmintModFire3D
+SetWeaponSound DLC02WeapSniperRifle 11 WPNRifleVarmintModFire2D
+
+; ----------------------------------------------------------------------------
+; ...
+; ----------------------------------------------------------------------------
+;GetWeaponItemMod 3 WeapBBGun
+;MS06LincolnsRifle
+
+;}}} - END: Weapons ---------------------------------------------------------
+;}}} = END: Items ===========================================================
+
+;{{{ = Event Handlers =======================================================
+;{{{ - Auto-own on pick-up --------------------------------------------------
+Print "Adding [Own on Pick-Up]..."
+; OnAdd: Item added to player's inventory are now owned by the player
+; removing the magic "Owned By ..." label that every vendor etc. can see.
+SetEventHandler "OnAdd" (begin function {ref rItem, ref rPlayer}
+    ; just in case ignor quest items
+    ;let iType = rItem.GetObjectType
+    if eval IsQuestItem rItem
+    else
+        return
+    endif
+    rItem.SetOwnership  ; set ownership to player
+    ;rItem.ClearOwnership  ; remove ownership
+end) "second"::Player
+
+; WARNING: I'm not 100% sure if this could break something, no issues for now.
+; Note: This still counts as stealing since ownership is changed after the
+; Activate event. Adding an "OnActivate" handler could potentially be an
+; option but it would requrie various checks etc. and I currently don't need
+; it.
+;}}} - END: Auto-own on pick-up ---------------------------------------------
+
+;{{{ - Auto-repair on equip/pick-up -----------------------------------------
+Print "Adding [Repair on Pick-Up]..."
+; I currently play without item degradation and I don't barter much so I
+; prefer a clean inventory with identical condition indicators.
+
+; Fully repair given item reference if it is a weapon or armor
+ref rRepairWhenApplicable = (begin function {ref rItem}
+    ; ignore quest items (just in case) and only apply to weapons and armor
+    int iType = rItem.GetObjectType
+    if eval IsQuestItem rItem || !(iType == 40 || iType == 24)
+        return
+    endif
+    rItem.SetItemRefCurrentHealth 1.0 1
+end)
+
+; Repair items (weapons and armor) on pick-up
+; Note: Does not work for all ways of adding items to the inventory, but
+;   it's sufficient for now, all items are repaired on game load anyway.
+SetEventHandler "OnAdd" (begin function {ref rItem, ref rPlayer}
+    Call rRepairWhenApplicable rItem
+end) "second"::Player
+
+; Repair all iventory items (weapons and armor) on game load
+; Note: Does not work on initial game load from main menu or for new games
+; TODO in case of a huge inventory, this might take a while and increase loading time
+SetEventHandler "PostLoadGame" (begin function {int bSuccessfullyLoaded}
+    Print "Reparing all non-quest item weapons & armor in PC inventory..."
+    ;int iCountTypeMatch = 0
+    ;int iCountRepaired = 0
+    foreach rItem <- PlayerRef  ; TODO consider filtering first, if more efficient
+        Call rRepairWhenApplicable rItem
+    loop
+    ;PrintD "Repaired " + $(iCountRepaired) + " of " + $(iCountTypeMatch) + " weapons & armor in player's inventory (" + $(iCountTypeMatch - iCountRepaired) + " quest items skipped)."
+end) "first"::1  ; run only on successful load
+
+; TODO remove old test stuff, or integrate into the above
+; https://geckwiki.com/index.php?title=GetAllItemRefs
+; foreach itemBF <- (Player.GetAllItems 0 1 1 0)
+;     Print itemBF
+;     foreach itemRef <- (Player.GetInvRefsForItem itemBF)
+;         Print "[iType=" + $(itemRef.GetObjectType) + ", rCrossha irRef=" + $(itemRef) + ", owner=" + $(itemRef.GetOwner) + "]"
+;     loop
+; loop
+
+;foreach iTypeCode <- https://geckwiki.com/index.php?title=Inventory_Item_Type_Codes
+;array_var aItemsRefs = Player.GetAllItemRefs iTypeCode 1 1 0
+;foreach ref rItem <- aItemsRefs
+;     Print "[iType=" + $(rItem.GetObjectType) + ", rCrossha irRef=" + $(rItem) + ", owner=" + $(rItem.GetOwner) + "]"
+; loop
+;}}} - END: Auto-repair on equip/pick-up ------------------------------------
+;}}} = END: Event Handlers ==================================================
+
+Print "..Done."

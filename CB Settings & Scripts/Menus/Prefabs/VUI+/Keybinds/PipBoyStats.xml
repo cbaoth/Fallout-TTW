@@ -1,0 +1,27 @@
+<!-- CB: Changed all keys conflicting with WASD+EX/Q menu navigation &
+    interaction (in doubt for consistency only) -->
+
+<!-- Stimpack (Vanilla: S)-->
+<!-- CB: 1, similar favorite menu bindings -->
+<_PCButton_1> stats_stimpak_button </_PCButton_1>
+<_stats_stimpak_button> 1) </_stats_stimpak_button>
+
+<!-- RadAway (Vanilla: A)-->
+<!-- CB: 2, similar favorite menu bindings -->
+<_PCButton_2> stats_radaway_button </_PCButton_2>
+<_stats_radaway_button> 2) </_stats_radaway_button>
+
+<!-- RadX (Vanilla X)-->
+<!-- CB: 3, similar favorite menu bindings -->
+<_PCButton_3> stats_radx_button </_PCButton_3>
+<_stats_radx_button> 3) </_stats_radx_button>
+
+<!-- Doctor's Bag (Vanilla: E)-->
+<!-- CB: 4, similar favorite menu bindings -->
+<_PCButton_4> stats_drbag_button </_PCButton_4>
+<_stats_drbag_button> 4) </_stats_drbag_button>
+
+<!-- Toggle General/Reputation (Vanilla R)-->
+<!-- CB: R, matches other Accept/ShowDetails/ToggleView bingings -->
+<_PCButton_R> stats_genrep_button </_PCButton_R>
+<_stats_genrep_button> R) </_stats_genrep_button>

@@ -1,0 +1,4 @@
+<!-- Done (Vanilla: E) -->
+<!-- CB: X, matches other Exit/Cancel actions -->
+<_PCButton_X> RM_CancelButton </_PCButton_X>
+<_RM_CancelButton> X) </_RM_CancelButton>

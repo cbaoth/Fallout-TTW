@@ -1,0 +1,14 @@
+<!-- Next (Vanilla: A) -->
+<!-- CB: R, matches other Accept/ShowDetails/ToggleView bingings -->
+<_PCButton_R> TM_next_button </_PCButton_R>
+<_TM_next_button> R) </_TM_next_button>
+
+<!-- Previous (Vanilla: S) -->
+<!-- CB: Q, matches other Back/Reset actions -->
+<_PCButton_Q> TM_prev_button </_PCButton_Q>
+<_TM_prev_button> Q) </_TM_prev_button>
+
+<!-- Close (Vanilla: E) -->
+<!-- CB: X, matches other Exit/Cancel actions -->
+<_PCButton_X> TM_close_button </_PCButton_X>
+<_TM_close_button> X) </_TM_close_button>

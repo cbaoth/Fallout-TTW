@@ -1,0 +1,9 @@
+<!-- OK (Vanilla: A) -->
+<!-- CB: R, matches other Accept/ShowDetails/ToggleView bingings -->
+<_PCButton_R> QM_OKButton </_PCButton_R>
+<_QM_OKButton> R) </_QM_OKButton>
+
+<!-- Cancel (Vanilla: E)-->
+<!-- CB: X, matches other Exit/Cancel actions -->
+<_PCButton_X> QM_CancelButton </_PCButton_X>
+<_QM_CancelButton> X) </_QM_CancelButton>

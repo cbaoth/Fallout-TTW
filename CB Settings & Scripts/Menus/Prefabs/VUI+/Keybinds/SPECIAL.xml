@@ -1,0 +1,9 @@
+<!-- Reset (Vanilla: R) -->
+<!-- CB: Q, matches other Back/Reset actions -->
+<_PCButton_Q> CGM_ResetButton </_PCButton_Q>
+<_CGM_ResetButton> Q) </_CGM_ResetButton>
+
+<!-- Done (Vanilla: A)-->
+<!-- CB: R, matches other Accept/ShowDetails/ToggleView bingings -->
+<_PCButton_R> CGM_DoneButton </_PCButton_R>
+<_CGM_DoneButton> R) </_CGM_DoneButton>

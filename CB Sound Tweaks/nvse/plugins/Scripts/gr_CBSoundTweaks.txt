@@ -1,0 +1,229 @@
+; code: language=geckscript
+; Ambient/Environment Volume Control for all (known) TTW ambient sounds
+; Runs on Game Start only (gr_*.txt) so we dont' apply offsets multiple times
+
+Print "Loading CBSoundTweaks ..."
+
+; Uncomment to enable debug output
+SetDebugMode 1
+
+;{{{ - Preconditions & Init -------------------------------------------------
+; GetINI* works in root folder \Data\Config
+string_var sTweaksINIFilePath = "CBSoundTweaks\Tweaks.ini"
+; FileExists works in root folder \Data
+if FileExists ("config\" + sTweaksINIFilePath)
+else
+    Print "ERROR: INI file [" + sTweaksINIFilePath + "] not found! Exiting..."
+    return
+endif
+
+string_var sSoundRefsINIFilePath = "CBSoundTweaks\SoundRefs.ini"
+if FileExists ("config\" + sSoundRefsINIFilePath)
+else
+    Print "ERROR: INI file [" + sSoundRefsINIFilePath + "] not found! Exiting..."
+    return
+endif
+
+
+array_var aTweakSectionsKS = GetINISectionNames (sTweaksINIFilePath)
+;Ar_Dump aTweakSectionsKS ; DEBUG
+int iTweakSectionCount = Ar_Size aTweakSectionsKS
+if iTweakSectionCount
+    DebugPrint "Found " + $(iTweakSectionCount) + " Sound Tweak(s) in [" + sTweaksINIFilePath + "]"
+else
+    Print "ERROR: INI file [" + sTweaksINIFilePath + "] appears to be empty, no INI sections found! Exiting..."
+    return
+endif
+
+array_var aSoundRefsSectionsKS = GetINISectionNames (sSoundRefsINIFilePath)
+;Ar_Dump aSoundRefsSectionsKS ; DEBUG
+int iRoundRefsSectionsCount = Ar_Size aSoundRefsSectionsKS
+if iRoundRefsSectionsCount
+    DebugPrint "Found " + $(iRoundRefsSectionsCount) + " Sound Reference section(s) in [" + sSoundRefsINIFilePath + "]"
+else
+    Print "ERROR: No Sound Reference section(s) found in [" + sSoundRefsINIFilePath + "], INI file appears to be empty! Exiting..."
+    return
+endif
+
+;}}} - END: Preconditions & Init --------------------------------------------
+
+
+;{{{ - Apply Sound Tweak(s) -------------------------------------------------
+int iTweaksEnabled = (iTweakSectionCount)
+int iTweaksApplied = 0
+int iSoundsTweaked = 0
+foreach array_var aTweakNameKS <- aTweakSectionsKS
+
+    ; Evaluate tweak section name key-string
+    string_var sTweakName = *aTweakNameKS
+    ;if Sv_Length sTweakName <= 0
+    ;else
+    ;    continue ; skipping null/empty tweak section (name)
+    ;endif
+    short bDisabled = GetINIFloat (sTweakName + ":bDisabled") (sTweaksINIFilePath)
+    if bDisabled
+        DebugPrint "Ignoring Disabled Tweak [" + $(sTweakName) + "]..."
+        iTweaksEnabled -= 1
+        continue
+    endif
+
+    ; Get and evaluate sSoundRefsSection INI value from tweak
+    string_var sSRSection = GetINIString ($(sTweakName) + ":sSoundRefsSection") (sTweaksINIFilePath)
+    if eval (Sv_Length sSRSection) <= 0
+        ;Print "WARNING: Tweak value [" + sTweakName + ":sSoundRefsSection] missing in [" + sTweakName + "]! Skipping..."
+        ;continue
+        sSRSection = sTweakName  ; fall back to same section name as tweak
+    endif
+	DebugPrint "Applying Tweak [" + $(sTweakName) + "] to Sound References section [" + $(sSRSection) + "]..."
+
+    ; Get and evaluate sFunctionName from INI Tweak Section
+    ; SetSoundTraitNumeric is default if not set
+    string_var sFunction = GetINIString (sTweakName + ":sFunctionName") (sTweaksINIFilePath)
+    if eval (Sv_Length sFunction) <= 0 || sFunction == "SetSoundTraitNumeric"
+        ; TODO check values for validity
+        short bValueIsOffset = GetINIFloat (sTweakName + ":bValueIsOffset") (sTweaksINIFilePath)
+
+        float fValue = GetINIFloat (sTweakName + ":fValue") (sTweaksINIFilePath)
+        ;if fValue ; TODO 0 might be OK? Verify if this does what it should.
+        ;else
+        ;    Print "WARNING: Value [" + $(fValue) + "] [EditorID=" + sSoundRefEID + ", FormID=" + $(rSoundRef) + "] not found! Skipping..."
+        ;    continue
+        ;endif
+
+        int iTraitId = GetINIFloat (sTweakName + ":iTraitId") (sTweaksINIFilePath)
+        if iTraitId >= 0 && iTraitId <= 12
+        else
+            Print "WARNING: Unknown TraitID [" + $(iTraitId) + "], value must be in [0,12]! Skipping..."
+            continue
+        endif
+
+        ; Get and evaluate corresponding Sound References from SR INI section
+        array_var aSoundRefsSectionKS = GetINISection (sSRSection) (sSoundRefsINIFilePath) 1
+        ;Ar_Dump aSoundRefsSectionKS ; DEBUG
+        int iSoundRefsCount = Ar_Size aSoundRefsSectionKS
+        if Ar_Size aSoundRefsSectionKS  ; iSoundRefsCount
+            DebugPrint "Found " + $(iSoundRefsCount) + " Sound Reference(s) in Section [" + $(sSRSection) + "]..."
+        else
+            Print "WARNING: Sound Reference section [sSoundRefsSection=" + $(sSRSection) + "] not found, or empty (no SoundRef=[0,1] properties), in [" + $(sSoundRefsINIFilePath) + "]! Exiting..."
+            continue
+        endif
+
+        ; TODO collect sound refs to avoid duplicate tweaks (unless e.g. sForce=1 in tweak INI), remove =0 in SoundRefs.ini afterwards (only set to avoid duplicate tweaks)
+        ; TODO ensure that array values are unique
+        foreach array_var aSoundRefKS <- aSoundRefsSectionKS
+            string_var sSoundRefEID = aSoundRefKS["key"]
+            ; TODO consider changing this to db or multiplier for more specific control, enable/disable not needed (just comment out or remove)
+            ;short bSoundRefIsEnabled = *aSoundRefKS
+            ;if bSoundRefIsEnabled
+            ;    ;DebugPrint "Tweaking sound ref [" + sSRSection + ":" +sSoundRefEID + "]..." ; potentially too verbose
+            ;else
+            ;    ;DebugPrint "Skipping disabled sound ref [" + sSRSection + ":" +sSoundRefEID + "]..." ; potentially too verbose
+            ;    continue ; skipping disabled sound reference
+            ;endif
+            ref rSoundRef = EditorIDToFormID (sSoundRefEID)
+            if rSoundRef
+            else
+                Print "WARNING: Invalid Sound Reference [EditorID=" + sSoundRefEID + "]! Skipping..."
+                continue
+            endif
+            string_var sSoundRefFormID = GetRawFormIDString rSoundRef
+
+            ;Call rSetTrait rSound, fValue, bValueIsOffset
+            if bValueIsOffset
+                float fValueOrg = (GetSoundTraitNumeric rSoundRef 3)
+                float fValueNew = fValueOrg + fValue
+                DebugPrint "Changing Sound Trait #" + $(iTraitId) + " for [EditorID=" + $(sSoundRefEID) + ", FormID=" + $(sSoundRefFormID) + "] from [" + $(fValueOrg) + "] to [" + $(fValueNew) + "] using offset [" + $(fValue) + "]..." ; potentially too verbose
+                SetSoundTraitNumeric rSoundRef iTraitId fValueNew
+            else
+                DebugPrint "Changing Sound Trait #" + $(iTraitId) + " for [EditorID=" + $(sSoundRefEID) + ", FormID=" + $(sSoundRefFormID) + "] to [" + $(fValue) + "]..." ; potentially too verbose
+                SetSoundTraitNumeric rSoundRef iTraitId fValue
+            endif
+
+            iSoundsTweaked += 1
+        loop
+    ;elseif eval sFunction == "SetSoundFlag"
+    ;    ; TODO implement SetSoundFlag logic
+    ;    Print "WARNING: SetSoundFlag NOT YET SUPPORTED! Skipping..."
+    elseif eval sFunction == "SetSoundSourceFile"
+
+        ; Get and evaluate corresponding Sound References from SR INI section
+        array_var aSoundRefsSectionKS = GetINISection (sSRSection) (sSoundRefsINIFilePath) 0
+        ;Ar_Dump aSoundRefsSectionKS ; DEBUG
+        int iSoundRefsCount = Ar_Size aSoundRefsSectionKS
+        if Ar_Size aSoundRefsSectionKS  ; iSoundRefsCount
+            DebugPrint "Found " + $(iSoundRefsCount) + " Sound Reference(s) in Section [" + $(sSRSection) + "]..."
+        else
+            Print "WARNING: Sound Reference section [sSoundRefsSection=" + $(sSRSection) + "] not found, or empty (no SoundRef=[0,1] properties), in [" + $(sSoundRefsINIFilePath) + "]! Exiting..."
+            continue
+        endif
+
+        foreach array_var aSoundRefKS <- aSoundRefsSectionKS
+            ; sound ref to modify
+            string_var sSoundToSet = aSoundRefKS["key"]
+            string_var sSoundToGet = *aSoundRefKS
+            ref rSoundToSet = (EditorIDToFormID (sSoundToSet))
+            if eval ! (IsFormValid rSoundToSet)
+                Print "WARNING: Value [" + $(sSoundToSet) + "] in [" + $(sSoundToSet) + "=" + $(sSoundToGet) + "] is not a valid Base Form! Skipping..."
+                continue
+            endif
+            int iSoundToSetType = (GetType rSoundToSet)
+            if iSoundToSetType != 13
+                Print "WARNING: Base Form [" + $(sSoundToGet) + "] in [" + $(sSoundToSet) + "=" + $(sSoundToGet) + "] is of type ["+ $(iSoundToSetType) + "] instead of [13] SOUN(D)! Skipping..."
+                continue
+            endif
+            ; if eval Sv_Length sSoundToSetEID > 0; just try EditorIDToFormID
+            ref rSoundToGet = (EditorIDToFormID (sSoundToGet))
+            string_var sSoundFilePath
+            if eval (IsFormValid rSoundToGet)  ; given editor id is a valid base form?
+                int iSoundToGetType := (GetType rSoundToGet)
+                if iSoundToGetType != 13  ; is NOT of type sound?
+                    Print "WARNING: Base Form [" + $(sSoundToGet) + "] in [" + $(sSoundToSet) + "=" + $(sSoundToGet) + "] is not of type Sound [SOUN]! Skipping..."
+                    continue
+                endif
+                let sSoundFilePath := (GetSoundSourceFile (rSoundToGet))
+                Print "Replacing Sound File Path for [EditorID=" + $(sSoundToSet) + ", FormID=" + $(GetFormIDString rSoundToSet) + "] with [" + $(sSoundFilePath) + "] from [EditorID=" + $(sSoundToGet) + ", FormID=" + $(GetFormIDString rSoundToGet) + "]..."
+                ; TODO add option to overwrite (all) other values, or at least the volume related ones, since they can differ and not fit the new scenario
+                ;aCloneSoundFlags=*
+                ;aCloneSoundFlags=1,2
+                ;aCloneSoundTraits=2,3,4,5,11
+                ;aCloneSoundTraits=*
+                SetSoundSourceFile rSoundToSet (sSoundFilePath)
+            else
+                ; very basic hopefully least restrictive sainity check assuming
+                ; sound file names (in this context) always at least have any
+                ; char as file name and at least one word char as extension
+                if eval (Sv_RegexMatch (sSoundToGet) (".+\.\w+")) == 0
+                    Print "WARNING: Value [" + $(sSoundToGet) + "] in [" + $(sSoundToSet) + "=" + $(sSoundToGet) + "] is neither a valid Base Form nor a Sound File Path! Skipping..."
+                    continue
+                endif
+                let sSoundFilePath := sSoundToGet
+                Print "Replacing Sound File Path for [EditorID=" + $(sSoundToSet) + ", FormID=" + $(GetFormIDString rSoundToSet) + "] with [" + $(sSoundFilePath) + "]..."
+                SetSoundSourceFile rSoundToSet (sSoundFilePath)
+            endif
+            iSoundsTweaked += 1
+        loop
+    else
+        Print "WARNING: Unsupported function [sFunction=" + $(sFunction) + "] in [" + $(sTweaksINIFilePath) + "] Tweak ["+ $(sTweakName) +"]! Skipping..."
+        continue
+    endif
+
+    iTweaksApplied += 1
+loop
+
+if iTweaksApplied
+    if iTweaksApplied < iTweaksEnabled
+        Print "WARNING: Only " + $(iTweaksApplied) + " of " + $(iTweaksEnabled) + " (enabled) Tweaks were applied to a total of " + $(iSoundsTweaked) + " Sounds. Please check log for WARNINGs!"
+    else
+        Print "CBSoundTweaks: Successfully applied " + $(iTweaksApplied) + " of " + $(iTweaksEnabled) + " Tweaks to " + $(iSoundsTweaked) + " Sounds!"
+        ; TODO when map & force is implemented, add total unique sounds count
+    endif
+else
+    Print "ERROR: No Sound Tweak(s) applied! Exiting..."
+    return
+endif
+
+;}}} - END: Apply Sound Tweak(s) --------------------------------------------
+
+Print "..done!"
+
+;FileClose logFile

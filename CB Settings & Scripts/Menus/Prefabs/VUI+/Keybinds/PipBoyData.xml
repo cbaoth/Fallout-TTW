@@ -1,0 +1,9 @@
+<!-- Show Location, Set location at the map, Note and Challenge filters (no shortcut in vanilla, mapped to Q) -->
+<!-- CB: E, matches other Activate/Select bindings -->
+<_PCButton_E> MM_ButtonX </_PCButton_E>
+<_MM_ButtonX> E) </_MM_ButtonX>
+
+<!-- Switch between Challenges and Notes (Vanilla: R) -->
+<!-- CB: R, matches other Accept/ShowDetails/ToggleView bingings -->
+<_PCButton_R> MM_ButtonY </_PCButton_R>
+<_MM_ButtonY> R) </_MM_ButtonY>

@@ -1,0 +1,9 @@
+<!-- Accept (Vanilla: A) -->
+ <!-- CB: R, matches other Accept/ShowDetails/ToggleView bingings -->
+<_PCButton_R> RM_ButtonX </_PCButton_R>
+<_RM_ButtonX> R) </_RM_ButtonX>
+
+<!-- Exit (Vanilla: X) -->
+<!-- CB: X, matches other Exit/Cancel actions -->
+<_PCButton_X> RM_ButtonB </_PCButton_X>
+<_RM_ButtonB> X) </_RM_ButtonB>

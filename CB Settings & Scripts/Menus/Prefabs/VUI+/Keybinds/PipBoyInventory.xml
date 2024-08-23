@@ -1,0 +1,14 @@
+<!-- Repair (Vanilla: R)-->
+<!-- CB: R, matches other Accept/ShowDetails/ToggleView bingings in this case showing the Repair sub-menu -->
+<_PCButton_R> IM_RepairButton </_PCButton_R>
+<_IM_RepairButton> R) </_IM_RepairButton>
+
+<!-- Keyring close (Vanilla: E)-->
+<!-- CB: X, matches other Exit/Cancel actions -->
+<_PCButton_X> IM_CancelButton </_PCButton_X>
+<_IM_CancelButton> X) </_IM_CancelButton>
+
+<!-- Weapon Mod (Vanilla: X) -->
+<!-- CB: T, right next to R for Repair -->
+<_PCButton_T> IM_ModButton </_PCButton_T>
+<_IM_ModButton> T) </_IM_ModButton>

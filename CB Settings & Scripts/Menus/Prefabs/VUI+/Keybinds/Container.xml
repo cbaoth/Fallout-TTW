@@ -1,0 +1,9 @@
+<!-- Take All (Vanilla: R) -->
+<!-- CB: R, matches other Accept/ShowDetails/ToggleView bingings -->
+<_PCButton_R> CM_TakeAllButton </_PCButton_R>
+<_CM_TakeAllButton> R) </_CM_TakeAllButton>
+
+<!-- Exit (Vanilla E)-->
+<!-- CB: X, matches other Exit/Cancel actions -->
+<_PCButton_X> CM_ExitButton </_PCButton_X>
+<_CM_ExitButton> X) </_CM_ExitButton>

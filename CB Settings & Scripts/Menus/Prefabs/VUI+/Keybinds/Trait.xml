@@ -1,0 +1,9 @@
+<!-- Reset (Vanilla: R) -->
+<!-- CB: Changed "R" to "Q" as common Reset/Undo key -->
+<_PCButton_Q> LUM_ResetButton </_PCButton_Q>
+<_LUM_ResetButton> Q) </_LUM_ResetButton>
+
+<!-- Done (Vanilla: A)-->
+<!-- CB: R, matches other Accept/ShowDetails/ToggleView bingings -->
+<_PCButton_R> LUM_ContinueButton </_PCButton_R>
+<_LUM_ContinueButton> R) </_LUM_ContinueButton>
