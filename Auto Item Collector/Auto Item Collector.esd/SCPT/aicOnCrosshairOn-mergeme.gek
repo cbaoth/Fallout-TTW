@@ -1,0 +1,662 @@
+; First of all thanks for this really nice mod.
+
+; Todos include:
+; * Reduce dependencies, e.g. change all EditorID (traps etc.) and JLM checks to lookup by string if possible, so this mod doesn't require TTW / other mods
+; * Consolidate new parameters an add them to MCM (in a sensible way, understandable for the regular user)
+; * Testing ... I'm mostly plaing with my specific settings, so this should run pretty solid, but other combinations might not run (at all, never tested)
+; * Check all PrintDs, some might be invalid (could cause crashes), not sensible (added while debuging/learining to mod), ... in doubt, remove/comment most of them
+; * Check terminology (related to the above) in comments, variable names, and especially messages (might be wrong/confusing due to lack of knowledge at the time writing them)
+; * Check for potential performance improvements, at least make sure that we always return asap (vs. continuing to do unnecessary stuff before returning later on)
+; * Add timer after arming a trap, so not to immediately show the disarm dialogue again
+
+; To enable debug mode run console command (can cause a lot of lagging with all the current PrintDs in place):
+;   SetDebugMode 1 (GetModIndex "Auto Item Collector.esp")
+; Disable again:
+;   SetDebugMode 0 (GetModIndex "Auto Item Collector.esp")
+
+
+scn aicOnCrosshairOn
+begin Function {ref rCrosshairRef}
+	if aicMain.bToggled != 1
+		return
+	endif
+	if IsReference rCrosshairRef != 1
+		return
+	endif
+    if eval Sv_Find "<no name>" (GetName rCrosshairRef) > -1
+        return
+    endif
+    float fTimeSinceLastDrop = (GetSessionTime - aicMain.fTimeLastItemDrop)
+    ; TODO initialize aicMain.fTimeLastItemDrop, reset to NULL or negative value on game load (value is saved and initially outdated)
+    ; TODO make grace period in seconds configurable
+    if eval aicMain.fTimeLastItemDrop && fTimeSinceLastDrop >= 0.0 && fTimeSinceLastDrop < 3.0
+        PrintD "AIC: Last item drop check [fTimeLastItemDrop=" + $(aicMain.fTimeLastItemDrop) + ", GetSessionTime=" + $(GetSessionTime) + ", fTimeSinceLastDrop=" + $(fTimeSinceLastDrop) + "]"
+        MessageEx "AIC: Disable for 3sec, grace period after item drop..."
+        return
+    endif
+	GetReticlePosAlt (float fPosX) (float fPosY) (float fPosZ)
+	array_var aAllItems = ar_Construct array
+	short bTargetHasInventory = 0  ; container, actor inventory / ash pile?
+    short bIsAshPile = 0
+	short bIsActor = 0
+	short bCollectWorldItems = 1  ; TODO add config
+	short bClearOwner = 1 ; TODO add config, clear ownership on pickup / make player owner (might not be implemented in all cases, plus could be risky e.g. for quest items ... not sure)
+	short bIgnoreAllOwnedItems = 1  ; TODO add config, 1 = skip all owned items including those owned by the player (e.g. to not pick up dropped/stashed items)
+	short bUseCustomInclusiveFilter = 0  ; TODO add config or toggle, in case custom filters are enable and this is 1: juse both (inc+exc), else 0: exc only (collect unless excluded, ignore default hard-coded main filters)
+	; TODO consider changing / adding option to e.g. list items as "take only with hotkey", not only world items, but may be too complex to manage for most users
+	; TODO consider (simple) allowing to reverse the key logic, not collect when pressed (in cases where it is inappapropriate), or just toggle the whole tool, which is already possible
+	;int iKeyPickup = 56 ; holding left alt allows picking up world items (outside containers)
+	int iKeyPickup = 0 ; don't use hotkey, pickup all (filtered) world items
+	short bKeyPickupInvert = 0 ; TODO add config, 0 = pickup while pressed (default), 1 = pickup while NOT pressed (pressing temporaraily disables pickup)
+	; TODO consider (simple) allowing to reverse the key logic, e.g. to avoid accidental stealing in specific scenarios only
+	; TODO consider an option to only steal (independent of the hotkey option) when sneaking/hidden (or if possible when unseen, even if not sneaking)
+	int iKeySteal = 56 ; steal while alt (56) / right mouse (257) button is held down
+	;int iKeySteal = 0 ; don't use hotkey, steal anything without asking (container & world)
+	short bKeyStealInvert = 0 ; TODO add config, 0 = pickup while pressed (default), 1 = pickup while NOT pressed (pressing temporaraily disables pickup)
+	short bStealOnlyAtDetectionLevel = 0
+	; see https://geckwiki.com/index.php?title=GetPCDetectionState cautions might also be fine, usually
+	; -1=N/A (Menu/Loading), 0=HIDDEN, 1=CAUTION, 2=DETECTED, 3=DANGER
+	;short iStealOnlyAtMaxDetectionState = 0  ; Steal when state is CAUTION or HIDDEN
+	int iStealOnlyAtMaxDetectionState = 1  ; Steal when state is HIDDEN
+
+	;MessageEx "AIC: Scanning ..." ; DEBUG
+	PrintD "AIC: Scanning: " + $(rCrosshairRef) + " [RefID=" + $(GetFormIDString rCrosshairRef) + ", FormID=" + $(GetFormIDString (rCrosshairRef.GetBaseObject)) + ", EditorID=" + $(GetEditorID (rCrosshairRef.GetBaseForm)) + ", ObjectType=" + $(rCrosshairRef.GetObjectType) + ", IsActor=" + $(rCrosshairRef.IsActor) ; DEBUG
+
+	if rCrosshairRef.IsActor ; actor
+		; TODO remove/re-evaluate, doesn't seem reasonable / as useful as it seemed at the time
+		;if eval (Ar_Find rCrosshairRef.GetBaseForm, aicMain.aActorContainerFilter) != Ar_BadNumericIndex
+		;	PrintD "AIC: Actor [" + $(rCrosshairRef) + "] in ignore list, skipping..." ; DEBUG
+		;	return
+		;endif
+		bIsActor = 1
+		bTargetHasInventory = 1
+		if aicMain.bWaitOnDyingActors != 1
+			if rCrosshairRef.GetDead != 1
+				return
+			endif
+		else
+			if eval (rCrosshairRef.GetLifeState == 1)
+				CallWhen (begin Function {ref rRef}
+					if GetCrosshairRef == rRef
+						Call aicOnCrosshairOn rRef
+					endif
+				end) ({rRef} => rRef.GetLifeState == 2 || GetCrosshairRef != rRef) 23 rCrosshairRef
+				return ; TODO check if this is correct, added since after "making the call" this one should not continue in parallel/afterwards
+			endif
+			if eval (rCrosshairRef.GetLifeState != 2)
+				return
+			endif
+		endif
+	elseif eval ((int iType = rCrosshairRef.GetObjectType) == 27) ; container
+		; TODO remove/re-evaluate, doesn't seem reasonable / as useful as it seemed at the time
+		;if eval (Ar_Find rCrosshairRef.GetBaseForm, aicMain.aActorContainerFilter) != Ar_BadNumericIndex
+		;	PrintD "AIC: Container [" + $(rCrosshairRef) + "] in ignore list, skipping..." ; DEBUG
+		;	return
+		;endif
+		bTargetHasInventory = 1
+		if rCrosshairRef.GetLocked
+			if aicMain.bUnlockedContainers
+				CallWhen (begin Function {ref rRef}
+					if GetCrosshairRef == rRef
+						Call aicOnCrosshairOn rRef
+					endif
+				end) ({rRef} => rRef.GetLocked != 1 || GetCrosshairRef != rRef) 3 rCrosshairRef
+			endif
+			return
+		endif
+		short bStealKeyCondition = (iKeySteal <= 0 || (bKeyStealInvert == 0 && (IsKeyPressed iKeySteal) || (bKeyStealInvert == 1 && ! (IsKeyPressed iKeySteal))))
+		if eval rCrosshairRef.IsCrimeOrEnemy && bStealKeyCondition && (iStealOnlyAtMaxDetectionState >= 0 && (GetPCDetectionState > iStealOnlyAtMaxDetectionState))
+			if eval (testexpr ref rOwner = rItem.GetOwner)
+				MessageExAlt 1 "AIC: This is owned by %q%n%q." rOwner
+			else
+				MessageExAlt 1 "AIC: This is owned."
+			endif
+			return
+		endif
+		if rCrosshairRef.HasVariable "Opened" && rCrosshairRef.GetVariable "Opened" != 1
+			if (IsScripted rCrosshairRef) == 1 && (rCrosshairRef.HasScriptBlock 2) == 1  ; has a script with onActivate block?
+				; regular graves/burial mounds that need a shovel to open
+				string_var sScriptName = GetEditorID (GetScript rCrosshairRef)
+				if eval sScriptName == "GraveContScript"
+					; shovel required, DLC shovels are fine too
+					if (player.GetItemCount WeapShovel >= 1 || player.GetItemCount DLC04WeapShovel >= 1 || player.GetItemCount DLC04WeapUniqueFertilizerShovel >= 1)
+						MessageEx "AIC: Opening grave with shovel..."
+						rCrosshairRef.SetVariable Opened 1  ; open grave, same way as in the original script but without activating (opens container menu)
+					else
+						;ShowMessage NoShovelMsg
+						MessageEx "AIC: Grave still closed, youn need a shovel to dig here..."
+					endif
+				else
+					; lets not mess with unknown scripted containers (could e.g. mess with quests or worse)
+					PrintD "AIC: Unknown closed container with onActivate script-block, skipping..."
+					MessageEx "AIC: Scripted container still closed, open it manually first..."
+					return
+				endif
+			else
+				MessageEx "AIC: Container still closed, unlock it first..."
+				return
+			endif
+		endif
+		if rCrosshairRef.GetItemCount aicAntiAICIdol > 0
+			MessageEx "%q%z%q is found. Auto Item Collector is disabled on this container." ($aicAntiAICIdol)
+			return
+		endif
+	elseif iType == 21 ; activator
+		PrintD "AIC: Activator 21: " + $(rCrosshairRef) ; DEBUG
+		;MessageEx "AIC: isActivator ..." ; DEBUG
+		if eval (Ar_Find rCrosshairRef.GetBaseForm, aicMain.aActivatorFilter) != Ar_BadNumericIndex
+			PrintD "AIC: Known activator found: " + $(rCrosshairRef) ; DEBUG
+			let aAllItems = Ar_List rCrosshairRef  ; single activator object to list
+		elseif eval iType == 21 && rCrosshairRef.GetAshPileSource
+			PrintD "AIC: Ash-Pile found: " + $(rCrosshairRef.GetAshPileSource) ; DEBUG
+			; TODO remove/re-evaluate, doesn't seem reasonable / as useful as it seemed at the time
+			;if eval (Ar_Find rCrosshairRef.GetBaseForm, aicMain.aActorContainerFilter) != Ar_BadNumericIndex
+			;	PrintD "AIC: Actor [" + $(rCrosshairRef) + "] in ignore list, skipping..." ; DEBUG
+			;	return
+			;endif
+			rCrosshairRef = rCrosshairRef.GetAshPileSource
+			bTargetHasInventory = 1
+			bIsAshPile = 1
+		else
+			PrintD "AIC: No known activator found: " + $(rCrosshairRef) ; DEBUG
+			return
+		endif
+	elseif iType == 51 ; projectile (e.g. mine)
+		;MessageEx "AIC: isProjectile ..." ; DEBUG
+		PrintD "AIC: Projectile 51: " + $(rCrosshairRef) ; DEBUG
+		; TODO maybe filter via ini list too, or at least for pickup (vs. disarm)? make configurable.
+		; must be type Lobber (mine, grenade, bomb, etc.) and able to pickup (flag 6, disarm flag 5 only for some, checked below)
+		if eval (GetProjectileTraitNumeric (rCrosshairRef.GetBaseForm) 0) == 2 && (GetProjectileFlag (rCrosshairRef.GetBaseForm) 6)
+			PrintD "AIC: Collectable Lobber Projectile found: " + $(rCrosshairRef) ; DEBUG
+			let aAllItems = Ar_List rCrosshairRef  ; single activator object to list
+		else
+			PrintD "AIC: Projectile can't be picked up: " + $(rCrosshairRef) ; DEBUG
+			return
+		endif
+	elseif eval bCollectWorldItems && (iKeyPickup <= 0 || (bKeyPickupInvert == 0 && (IsKeyPressed iKeyPickup) || (bKeyPickupInvert == 1 && ! (IsKeyPressed iKeyPickup))))  ; left alt, TODO FIXME 1 -> aicMain.bCollectWorldItems
+		PrintD "AIC: iType == " + $(iType) ; DEBUG
+		PrintD "AIC: bCollectWorldItems enabled .." ; DEBUG
+		if eval iType == 31 || iType == 41 || iType == 46 || iType == 47 || iType == 49 || iType == 25 || iType == 40 || iType == 24 ; misc, ammo, key, injestible, note, books, weapons, armor
+			bTargetHasInventory = 0  ; single world item, no container
+			PrintD "AIC: Valid world item found: " + $(rCrosshairRef)  ; DEBUG
+			; Let's check this for individual items below (same for all items)
+			; if eval (rCrosshairRef.IsCrimeOrEnemy || (bIgnoreAllOwnedItems && ref rOwner = rCrosshairRef.GetOwner)) && (iKeySteal > 0 && ! (IsKeyPressed iKeySteal)) && (iStealOnlyAtMaxDetectionState  >= 0 && (GetPCDetectionState > iStealOnlyAtMaxDetectionState))
+			; 	MessageEx "This is owned by %q%s%q and the stealing-hotkey is not pressed." (ToString rOwner)
+			; 	return
+			; endif
+			; TODO consider re-adding my previous GetOwner check, optionally also ignoring player owned items (e.g. to not pick up dropped/stashed items)
+			let aAllItems = Ar_List rCrosshairRef  ; single item to list
+		endif
+	else
+		return
+	EndIf
+
+	PrintD "aAllItems (World or Empty):" + $(aAllItems)  ; DEBUG
+	if bTargetHasInventory == 1  ; actor/container inventory? (not a single world item)
+		;bTargetHasInventory eval ((ar_Size aAllItems) < 1) ; no world item added above?
+		; try regular container items as usual
+		;MessageEx "AIC: No world items, trying to get container/actor inventory..." ; DEBUG
+		PrintD $(rCrosshairRef)  ; DEBUG
+		; get all player items
+		let aAllItems := (rCrosshairRef.GetAllItems 0 1 0 0)
+        PrintD "AIC: Inventory items: " + $(aAllItems)  ; DEBUG
+		; if (former) actor? then get (potentially) dropped items as well
+		if rCrosshairRef.IsActor || bIsAshPile == 1
+			;MessageEx "AIC: Is Actor / Ash-Pile" ; DEBUG
+			; if no inventory items, create empty array first
+			if eval aAllItems == Ar_Null
+				aAllItems = Ar_Construct "array"
+			endif
+            array_var aDroppedRefs := rCrosshairRef.GetDroppedRefs
+			if eval aDroppedRefs != Ar_Null
+				Ar_InsertRange aAllItems 0 aDroppedRefs
+			endif
+
+			; get dropped items (world refs, no inventory refs!)
+            PrintD "AIC: Dropped items: " + $(aDroppedRefs)  ; DEBUG
+			;ar_Cat aAllItems rCrosshairRef.GetDroppedRefs
+            ;ar_ForEach (rCrosshairRef.GetDroppedRefs) ({ref rDroppedItem} => ar_Append aAllItems, rDroppedItem)
+			;ar_ForEach (rCrosshairRef.GetDroppedRefs) ({ref rDroppedItem} => ar_Append aAllItems, rDroppedItem)
+
+		endif
+		PrintD "aAllItems (" + $(rCrosshairRef) + "):" + $(aAllItems)  ; DEBUG
+	endif
+	if eval ((ar_Size aAllItems) < 1) ; no container/dropped items added above?
+		; return, nothing found
+		;MessageEx "AIC: No player item(s) found..." ; DEBUG
+		return
+	endif
+
+
+	PrintD "AIC: Past preconditions..." ; DEBUG
+	int bHasPackRat = player.HasPerk (GetFormFromMod "FalloutNV.esm" "14609B")
+	array_var aFilteredItems = ar_Construct array
+	array_var aFilteredBases = ar_Construct array
+	int iIdx = ar_Size aAllItems
+
+	while (iIdx -= 1) > -1
+		ref rItem = ref rBase = aAllItems[iIdx]  ; item reference or base form
+		if eval (IsReference rBase)  ; is not already a base form but a reference?
+			rBase = rBase.GetBaseObject ; then get base object too
+			PrintD "AIC: Filtering reference " + $(rItem) + " [RefID=" + $(GetFormIDString rItem) + ", FormID=" + $(GetFormIDString rBase) + ", EditorID=" + $(GetEditorID rBase) + "]" ; DEBUG
+		else
+			PrintD "AIC: Filtering base form [FormID=" + $(GetFormIDString rBase) + ", EditorID=" + $(GetEditorID rBase) + "]" ; DEBUG
+		endif
+
+		; skip non-playable items, embedded weapons, etc.
+		; important mainly for world items, including those dropped by actors
+		; source and resource for some other hints: https://www.nexusmods.com/newvegas/mods/66666
+		;   more specifically JLM - Just Loot Menu: https://www.nexusmods.com/newvegas/mods/68084)
+		if eval IsPlayable rItem == 0 ; non-playable item?
+			MessageEx "AIC: Non-playable item %q%n%q ignored." rItem ; DEBUG
+			continue
+		elseif eval GetType rItem == 40 && (GetWeaponFlags1 rItem & 32) == 32 ; embedded weapon?
+			MessageEx "AIC: Embedded weapon %q%n%q ignored." rItem ; DEBUG
+			continue
+		elseif eval GetType rItem == 40 && (GetWeaponFlags1 rItem & 136) == 136; non-playable weapon?
+			MessageEx "AIC: Non-playable weapon %q%n%q ignored." rItem ; DEBUG
+			continue
+		elseif eval Sv_Find "<no name>" (ToString rItem) > -1  ; unnamed item?
+			MessageEx "AIC: Unnamed item %q%n%q (%q%i%q) ignored." rItem rBase ; DEBUG
+			continue
+		endif
+
+		; TODO may not be appropriate (at least at this point), ignoring custom filter settings etc.
+		; TODO in case weight (to value) checks are enabled, consider checking e.g. in case of plants (weight of harvested item)
+		if iType == 21 || iType == 51 ; activator / projectile, already filtered above, add to list
+			ar_Append aFilteredItems, rItem
+			continue
+		endif
+
+		if IsQuestItem rItem  ; TODO just an idea to notifify, not the best place (might be filtered out)
+			MessageEx "AIC: Quest item %q%n%q found!" rItem
+		endif
+
+		; check if this would be stealing (refenreces only) or (re-)collecting
+		; player owned items. maybe redundant in some cases, but not all.
+		; TODO bIgnoreAllOwnedItems not really working for PC items, dropping items will usually immeadiately pick them up again before they are appear in the world, either only steal with hotkey (always) which still wouldn't work if items are not owned, or maybe briefly "cache" items OnDrop and ignore them for a while (or similar)
+		if eval (IsReference rItem) && (rItem.IsCrimeOrEnemy || (bIgnoreAllOwnedItems && (IsFormValid rOwner))) && (iKeySteal > 0 && ! (IsKeyPressed iKeySteal)) && (iStealOnlyAtMaxDetectionState >= 0 && (GetPCDetectionState > iStealOnlyAtMaxDetectionState))
+			ref rOwner = rItem.GetOwner
+			if eval (IsFormValid rOwner)
+				MessageExAlt 1 "AIC: This is owned by %q%n%q." rOwner
+			else
+				MessageExAlt 1 "AIC: This is owned."
+			endif
+			continue
+		endif
+
+		let iType = GetObjectType rItem
+		if aicMain.bUseCustomFilter
+			int iKey = int iFlag = 0
+			while iKey < (ar_Size aicMain.aCustomFilter)
+				if eval (Call aicGetName rItem) == (aicMain.aCustomFilter[iKey][1])
+					iFlag = (aicMain.aCustomFilter[iKey][0]) + 1
+					break
+				endif
+				iKey += 1
+			loop
+			; TODO if custom inclusive filter is disabled, skip hard coded main filters and just consider custom exclusive filter (might be risky)
+			if bUseCustomInclusiveFilter == 0  ; custom exclusive filter only?
+				; if excluded, then skip this item
+				if iFlag == 2 && aicMain.bUseCustomExclusiveFilter
+					continue
+				endif
+				; otherwise add all items of the following types without any additional (hard-coded) filters
+				if iType == 24 || iType == 25 || iType == 31 || iType == 40 || iType == 41 || iType == 46 || iType == 47 || iType == 49 || iType == 108 || iType == 115 || iType == 116
+					ar_Append aFilteredItems, rItem
+					continue
+				endif
+			endif
+			if eval iFlag == 1
+				ar_Append aFilteredItems, rItem
+				continue
+			endif
+			if iFlag == 2 && aicMain.bUseCustomExclusiveFilter
+				continue
+			endif
+			if aicMain.bCustomFilterOnly
+				continue
+			endif
+		endif
+		if eval (float fWeight = GetWeight rItem)
+			if bHasPackRat
+				if fWeight <= 2
+					fWeight *= 0.5
+				endif
+			endif
+			if aicMain.bUseValueWeightRatio
+				if eval aicMain.fValueWeightRatio <= (GetValueAlt rItem) / fWeight
+				ar_Append aFilteredItems, rItem
+				continue
+				endif
+			endif
+		endif
+		if eval (iType == 31) ;Misc
+			if eval (ar_Find rItem, aicMain.aMiscs) != ar_BadNumericIndex
+				ar_Append aFilteredItems, rItem
+				continue
+			endif
+			if aicMain.bMiscCaseGuns
+				if eval (ar_Find rItem, aicMain.aMiscCaseGuns) != ar_BadNumericIndex
+					ar_Append aFilteredItems, rItem
+					continue
+				endif
+			endif
+			if aicMain.bMiscCaseEnergy
+				if eval (ar_Find rItem, aicMain.aMiscCaseEnergy) != ar_BadNumericIndex
+					ar_Append aFilteredItems, rItem
+					continue
+				endif
+			endif
+			if aicMain.bMiscRockItLauncher
+				if eval (IsRefInList (GetFormFromMod "FalloutNV.esm" "6B20D"), rItem)
+					ar_Append aFilteredItems, rItem
+					continue
+				endif
+			endif
+			if aicMain.bWeapThrowing
+				if aicMain.iModIndexRetrievables == GetSourceModIndex rItem
+					ar_Append aFilteredItems, rItem
+					continue
+				endif
+			endif
+			continue
+		endif
+		if iType == 47 ;Ingestible
+			if fWeight < aicMain.fWeightThreshold
+				ar_Append aFilteredItems, rItem
+			endif
+			continue
+		endif
+		if iType == 41 ;Ammo
+			if eval (ar_Find rItem, aicMain.aAmmoEnergy) != ar_BadNumericIndex
+				if aicMain.bAmmoEnergy
+					ar_Append aFilteredItems, rItem
+				endif
+				continue
+			endif
+			if eval (ar_Find rItem, aicMain.aAmmoExplosive) != ar_BadNumericIndex
+				if aicMain.bAmmoExplosive
+					ar_Append aFilteredItems, rItem
+				endif
+				continue
+			endif
+			if aicMain.bAmmoGuns
+				ar_Append aFilteredItems, rItem
+			endif
+			continue
+		endif
+		if iType == 40 ;Weapon
+			if aicMain.bWeapGrenadesMines
+				if eval ((iType = GetWeaponType rItem) == 10) || iType == 11 || iType == 12
+					ar_Append aFilteredItems, rItem
+					continue
+				endif
+			endif
+			if aicMain.bWeapThrowing
+				if iType == 13
+					ar_Append aFilteredItems, rItem
+					continue
+				endif
+			endif
+			continue
+		endif
+		if iType == 116 || iType == 108 ;Faction Currency, Casino Chip
+			ar_Append aFilteredItems, rItem
+		endif
+	loop
+
+    ; Debug, keep for now e.g. for crash reports when collecting/activating "bad" objcets
+	PrintD "AIC: Filtered Items: " + $(aFilteredItems) ; DEBUG
+
+	; temporarily replaced with redundant code below, hot deploy for testing
+	; ref rMoveItemToPlayerInventory = (begin function {ref rItem, ref rBase, int iCount}
+	; 	if eval bTargetHasInventory && ! rBase ; inv item?
+	; 		rItem.RemoveMeIRAlt iCount bClearOwner player
+	; 	elseif bTargetHasInventory ; dropped item?
+	; 		rBase.MoveToContainer player bClearOwner
+	; 	else  ; world item
+	; 		rItem.Activate player 1
+	; 		if bClearOwner
+	; 			player.SetOwnership rItem
+	; 		endif
+	; 	endif
+	; end)
+
+	if eval !(ar_Size aFilteredItems)
+		return
+	endif
+	array_var aCollected = ar_Construct stringmap
+	array_var aSkipped = ar_Construct array
+	float fFreeRoom = (player.GetActorValue CarryWeight) - (player.GetActorValue InventoryWeight)
+	iIdx = ar_Size aFilteredItems
+	while (iIdx -= 1) > -1
+		ref rFilteredItem = (aFilteredItems[iIdx])
+		string_var svItem = GetName rFilteredItem
+		short bIsItemFromInventory = (eval bTargetHasInventory && ! (IsReference rFilteredItem))
+		PrintD "AIC: Collecting  " + $(GetFormIDString rFilteredItem) + " -> " + $(rFilteredItem) + ", bIsItemFromInventory=" + $(bIsItemFromInventory) ; DEBUG
+		if eval !(fWeight = GetWeight rFilteredItem) || aicMain.bEncumberCheck != 1
+			; regular inventory item? not world or actor dropped item?
+			if bIsItemFromInventory
+				aCollected[$svItem] = (rCrosshairRef.GetItemCount rFilteredItem)
+			else
+				aCollected[$svItem] = 1
+			endif
+			if eval !(ref rForB42Loot) && aicMain.bB42Loot
+				rForB42Loot = rFilteredItem
+			endif
+			if eval ref rSound == 0
+				rSound = GetPickupSound rFilteredItem
+			endif
+		elseif bHasPackRat
+			if fWeight <= 2
+				fWeight *= 0.5
+			endif
+		endif
+
+		array_var aInvOrBaseRefs  ; TODO not only inventory refs (anymore)!
+		if bIsItemFromInventory ; regular inventory item -> get all refs (stacks)
+			let aInvOrBaseRefs = rCrosshairRef.GetInvRefsForItem rFilteredItem
+		else
+			let aInvOrBaseRefs = (Ar_List rFilteredItem)
+		endif
+		PrintD "aInvOrBaseRefs: " + $(aInvOrBaseRefs) ; DEBUG
+		iKey = -1
+		short bNotActivated = 0
+		while (iKey += 1) < (ar_Size aInvOrBaseRefs)
+			ref rItem = rBase = aInvOrBaseRefs[iKey]
+			int iRefCount = 0  ;  default, take all
+			if eval ! (IsBaseForm rItem)
+				PrintD "AIC: IsBaseForm=false: " + $(rItem)
+				rBase = rItem.GetBaseObject  ;; TODO maybe GetBaseObject?
+			endif
+
+			short bCheckWeight = 1
+			if fWeight == 0 || aicMain.bEncumberCheck != 1
+				bCheckWeight = 0
+			endif
+			if eval bCheckWeight && (fFreeRoom - fWeight) <= -1
+				ar_Append aSkipped, rFilteredItem
+				break
+			endif
+			if eval bCheckWeight && (float fVal = (fFreeRoom + 1) / fWeight) < (iRefCount = rItem.GetRefCount)
+				iRefCount = fVal
+				ar_Append aSkipped, rFilteredItem
+				int bBreak = 1
+			endif
+			fFreeRoom -= ((iRefCount = Ceil iRefCount) * fWeight)
+
+			;Call rMoveItemToPlayerInventory rItem rBase 0
+			PrintD "bTargetHasInventory: " + $(bTargetHasInventory) ; DEBUG
+			PrintD "AIC: Taking or Activating Item: " + $(rItem) + " [RefID=" + $(GetFormIDString rItem) + ", FormID=" + $(GetFormIDString rBase) + ", EditorID=" + $(GetEditorID rBase) + "]" ; DEBUG
+			if eval (isReference rItem) && rItem.IsInventoryRef ; inventory item?
+				PrintD "AIC: Moving inventory item to player inventory: " + $(rItem) ; DEBUG
+				if bCheckWeight
+					rItem.RemoveMeIRAlt iRefCount bClearOwner player
+				else
+					rItem.RemoveMeIRAlt 0 bClearOwner player
+				endif
+			elseif bTargetHasInventory ; dropped actor item?
+				PrintD "AIC: Moving dropped actor item to player inventory: " + $(rItem) ; DEBUG
+				; TODO FIXME this is pretty much a hack to work around cases where MoveToContainer failes, find out which cases these are and add them to the condition (skip vs. dirty trying)
+				if eval (isReference rItem)
+					rItem.MoveToContainer player bClearOwner
+				else
+					rBase.Activate player
+				endif
+			elseif iType == 51 ; projectile (e.g. mine)
+				; TODO currently always disam (if necessary/possible) + pickup, maybe add config esp. for low disam chance
+				if rItem.GetMineArmed; disarmable and actually armed?
+					;(GetProjectileFlag rBase 5)
+					PrintD "AIC: Attempting to disarming projectile: " + $(rItem) ; DEBUG
+					rItem.Activate player 1
+				endif
+				PrintD "AIC: Picking up projectile: " + $(rItem) ; DEBUG
+				rBase.MoveToContainer player bClearOwner
+			elseif iType == 21; activator (e.g. trap or plant), pre-filtered above via INI list
+				; TODO consider auto-disarming without dialogue and/or use this: https://www.nexusmods.com/newvegas/mods/84831
+				; check for known traps and disarm if necessary (skip disarmed/exploded/tripped/... traps)
+				; TODO maybe a clearner solution with maps / ini values for var, or similar
+				; TODO consider string vs. editor id in case items are not in load order, e.g. Ar_Find (GetEditorID rBase), (Ar_List "TrapBearTrap", ..
+				if eval ((Ar_Find rBase, (Ar_List TrapBearTrap, SprungTrapBearTrap, NVDLC01SprungTrapBearTrap, NVDLC01TrapBearTrap, NVDLC02MQ03BearTrap, NVDLC02BearTrap, VHDLegionOliverRangerTrapBearTrap)) != Ar_BadNumericIndex) && ((rItem.HasVariable disarmed) && (rItem.GetVariable disarmed))
+					PrintD "AIC: Trap already disarmed, skipping: " + $(rItem) ; DEBUG
+					bNotActivated = 1 ; can't return from here (AFAIK), but in this case only a single iteration
+					continue
+				elseif eval ((Ar_Find rBase, (Ar_List NVDLC03X13LaserTripwireEmitter01)) != Ar_BadNumericIndex) && ((rItem.HasVariable bDisarmed) && (rItem.GetVariable bDisarmed))
+					PrintD "AIC: Trap already disarmed, skipping: " + $(rItem) ; DEBUG
+					bNotActivated = 1 ; can't return from here (AFAIK), but in this case only a single iteration
+					continue
+				elseif eval ((Ar_Find rBase, (Ar_List TrapTripwire01, NVDLC01TrapTripwire, NVDLC02TrapTripwire01, VHDLegionOliverTrapTripwire, VHeliosTrapLaserTripwire, RavenRockTrapLaserTripwireEmitter01, NVDLC04TrapLaserTripwireEmitter, NVDLC01trapShotgun, trapShotgun, trapShotgunCombat, TrapPressurePlate, NVDLC01TrapPressurePlate, NVDLC02TrapPressurePlate, TrapElectrifiedToiletTop01, MotionDetector01)) != Ar_BadNumericIndex) && ((rItem.HasVariable armed) && (rItem.GetVariable armed) != 1)
+					PrintD "AIC: Trap already disarmed, skipping: " + $(rItem) ; DEBUG
+					bNotActivated = 1 ; can't return from here (AFAIK), but in this case only a single iteration
+					continue
+				elseif eval ((Ar_Find rBase, (Ar_List TrapLaserTripwireEmitter01, TrapPitchingMachine01, DLC04TrapPitchingMachine)) != Ar_BadNumericIndex) && ((rItem.HasVariable isArmed) && ! (rItem.GetVariable isArmed))
+					PrintD "AIC: Trap already disarmed, skipping: " + $(rItem) ; DEBUG
+					bNotActivated = 1 ; can't return from here (AFAIK), but in this case only a single iteration
+					continue
+				elseif eval ((Ar_Find rBase, (Ar_List trapMineBuried01)) != Ar_BadNumericIndex) && ((rItem.HasVariable detonated) && (rItem.GetVariable detonated))
+					PrintD "AIC: Trap already detonated, skipping: " + $(rItem) ; DEBUG
+					bNotActivated = 1 ; can't return from here (AFAIK), but in this case only a single iteration
+					continue
+				elseif eval ((Ar_Find rBase, (Ar_List TrapBabyCarriage, TakomaTrapBabyCarriage, TrapMailboxBomb01)) != Ar_BadNumericIndex) && ((rItem.HasVariable getDestroyed) && (rItem.GetVariable getDestroyed))
+					PrintD "AIC: Trap already destroyed, skipping: " + $(rItem) ; DEBUG
+					bNotActivated = 1 ; can't return from here (AFAIK), but in this case only a single iteration
+					continue
+				; TODO added this but forgot the correct formid (and too lazy to check them all again, at least one should/might have GetDisabled)
+				;elseif eval ((Ar_Find rBase, (Ar_List LaserTripwireNVDLC)) != Ar_BadNumericIndex) && (((rItem.getLinkedRef).HasVariable GetDisabled) && (rItem.getLinkedRef).GetVariable GetDisabled)
+				;	PrintD "AIC: Trap already disabled, skipping: " + $(rItem) ; DEBUG
+				;	bNotActivated = 1 ; can't return from here (AFAIK), but in this case only a single iteration
+				;	continue
+				; TODO they'll just explode on activation, no disarm possible, so let's not kill ourselves, shall we?
+				; elseif eval ((Ar_Find rBase, (Ar_List TrapComputer, TrapComputerBack)) != Ar_BadNumericIndex) && ((rItem.HasVariable tripped) && (rItem.GetVariable tripped))
+				; 	PrintD "AIC: Trap already tripped, skipping: " + $(rItem) ; DEBUG
+				; 	bNotActivated = 1 ; can't return from here (AFAIK), but in this case only a single iteration
+				; 	continue
+				elseif eval ((Ar_Find rBase, (Ar_List RavenRockTrapLaserTripwire)) != Ar_BadNumericIndex) && ((rItem.HasVariable trapTripped) && (rItem.GetVariable trapTripped))
+				endif
+				;elseif ... TrapGrenadeBunch, just activate (pickup)
+
+				if rItem.GetDestroyed
+					PrintD "AIC: Activator already destroyed (e.g. harvested), skipping: " + $(rItem) ; DEBUG
+					bNotActivated = 1 ; can't return from here (AFAIK), but in this case only a single iteration
+					continue
+				endif
+				PrintD "AIC: Triggering known world-activator: " + $(rItem) ; DEBUG
+				rItem.Activate player 1
+			else ; world player item
+				PrintD "AIC: Collecting world player-item: " + $(rItem) ; DEBUG
+				rItem.Activate player 1
+				if bClearOwner  ; not an activator && clear ownership enabled
+					PrintD "AIC: Setting ownership..." ; DEBUG
+					player.SetOwnership rItem
+				endif
+			endif
+
+			if 0 == testExpr (aCollected[$svItem] += iRefCount)
+				aCollected[$svItem] = iRefCount
+				if eval !(rForB42Loot) && aicMain.bB42Loot
+					rForB42Loot = rFilteredItem
+				endif
+			endif
+			if rSound == 0  ; try to set if still not set
+				rSound = GetPickupSound rFilteredItem
+			endif
+		loop
+	loop
+
+	; TODO Check for potential alternatives to this
+	if bNotActivated
+		return
+	endif
+	; Make JLM - Just Loot Menu refresh the HUD container content list after removing items
+	PrintD "AIC: JLM iRefresh: " + $(GetVariable iRefresh JLM)  ; DEBUG
+	;TestExpr (SetVariable iRefresh 1 JLM)
+	if IsModLoaded "JustLootMenu.esp" || IsModLoaded "JustAssortedMods.esp"
+		DispatchEventAlt "JLMUpdate"
+		PrintD "AIC: JLM iRefresh: " + $(GetVariable iRefresh JLM)  ; DEBUG
+	endif
+	RefreshItemsList  ; just in case, not sure if this is necessary at any point / in any setup
+
+	PrintD "AIC: aCollected: " + $(aCollected) ; DEBUG
+	PrintD "AIC: aSkipped: " + $(aSkipped) ; DEBUG
+	sv_Destruct svItem
+	if eval (ar_Size aSkipped)
+		if eval (ar_Size aSkipped) > 1
+			let aSkipped := (ar_Unique aSkipped)
+		endif
+		if eval (int iEntries = (ar_Size aSkipped)) == 1
+			MessageEx "Cannot auto-collect %n." (aSkipped[0])
+		elseif iEntries == 2
+			MessageEx "Cannot auto-collect %n and %n." (aSkipped[0]) (aSkipped[1])
+		else
+			MessageEx "Cannot auto-collect %n and other items." (aSkipped[0])
+		endif
+	endif
+	if eval !(iEntries = (ar_Size aCollected))
+		return
+	endif
+	string_var svKey = ar_First aCollected
+	while int iCount < iEntries
+		svItem += sv_Construct "+ %z x %g%r" svKey (aCollected[$svKey])
+		svKey = ar_Next aCollected, svKey
+		iCount += 1
+	loop
+	sv_Destruct svKey
+	if rSound
+		PlaySound rSound
+	else
+		PlaySound (GetFormFromMod "FalloutNV.esm" "194E5") ; UIItemGenericUp
+	endif
+	; TODO FIXME causes bug in ln_B42Loot.txt xll=array keys [] Array does not contain key
+	if rForB42Loot && aicMain.bB42Loot
+		; only show pickup animation for non-base types and non-activators (e.g. don't pickup whole plant/trap)
+		if eval ! (IsBaseForm rFilteredItem) && rFilteredItem.GetObjectType != 21
+			DispatchEventAlt "B42GV" rForB42Loot
+		endif
+	endif
+	if GetCrosshairRef == rCrosshairRef
+		UpdateCrosshairPrompt
+	endif
+	if aicMain.bUIDisplay != 1
+		sv_Destruct svItem
+		return
+	endif
+	if iEntries > 10
+		iEntries = 10
+	endif
+	if eval ((aicMain.iPanelIdx += 1) > 5)
+		aicMain.iPanelIdx = 0
+	endif
+	string_var svPanel = "HUDMainMenu\AIC\aicPanel" + $aicMain.iPanelIdx
+	SetUIStringAlt ($svPanel + "\string") $svItem
+	SetUIFloatGradual ($svPanel + "\_yMod") -128 -176 (2.4 + (0.3 * iEntries))
+	SetUIFloatGradual ($svPanel + "\alpha") 384 1 (1.6 + (0.3 * iEntries))
+	if GetUIFloatAlt ($svPanel + "\zoom") != aicMain.iFontScale
+		SetUIFloatAlt ($svPanel + "\zoom") aicMain.iFontScale
+	endif
+	sv_Destruct svPanel, svItem
+	aicMain.aPanels[aicMain.iPanelIdx] = (ar_List fPosX, fPosY, fPosZ)
+	if GetQuestRunning aicPanelUpdater != 1
+		StartQuest aicPanelUpdater
+	endif
+end
