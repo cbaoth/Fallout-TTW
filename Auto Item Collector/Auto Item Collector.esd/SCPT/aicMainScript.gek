@@ -329,11 +329,12 @@ begin MenuMode
 	endif
 	if eval (int iMenuCode = GetActiveMenuMode) == 1002 ;Inventory
 	elseif iMenuCode == 1077 ;Recipe
+	elseif iMenuCode == 1008 ;Container
 	elseif iMenuCode == 1001 ;Message
 	else
 		return
 	endif
-	if eval !(IsKeyPressed iCustomFilterKey) && !(IsButtonPressed iCustomFilterButton)
+	if eval !(IsKeyPressed iCustomFilterKey) && !(IsButtonPressed iCustomFilterButton) && !(IsKeyPressed 11) && !(IsKeyPressed 12) && !(IsKeyPressed 13) ; TODO configurable? 0/Minus/Equals Key for quick Remove/Exclude/Include
 		if bControlDisabled
 			bControlDisabled = 0
 		endif
@@ -342,7 +343,7 @@ begin MenuMode
 	if bControlDisabled != 1
 		bControlDisabled = 1
 	endif
-	if eval !(IsControlPressed 5) && !(IsKeyPressed 256) ;Left Mouse Button
+	if eval !(IsControlPressed 5) && !(IsKeyPressed 256) && !(IsKeyPressed 258) && !(IsKeyPressed 56) && !(IsKeyPressed 184) ;Left/Middle Mouse Button, TODO configurable? Left/Right Alt
 		return
 	endif
 	if rPendingRef != 0
@@ -375,13 +376,51 @@ begin MenuMode
 	endif
 	rPendingRef = GetSelectedItemRef.GetBaseForm
 	iKey = ar_Size aCustomFilter
+	int iVal = -1
 	while (iKey -= 1) > -1
 		if eval (GetName rPendingRef) == aCustomFilter[iKey][1]
+			iVal = aCustomFilter[iKey][0]
 			iKey = 1
 			break
 		endif
 	loop
-	if eval (float fWeight = GetWeight rPendingRef)
+	; TODO sounds "randomly" selected, not ideal, plus additional feedback might be helpulf for clarification & accessability
+	; TODO custom filters not refreshed in time, repeated attempts might repeat action (or at least sound etc.) without need
+	if (IsKeyPressed 11) ; item found in custom filters and 0 (remove) key pressed?
+		if iKey == 1
+			print "Removing item from Custom Filters..."
+			PlaySound NVDLC04FXFlareImpact 1
+			Call rMBoxPipRemove 0  ;remove from eithner list without message box query (quick toggle mode)
+		else
+			print "Unable to remove item from Custome Filters, not found..."
+			PlaySound NPCRobotEdEFail 1
+			rPendingRef = 0
+		endif
+	elseif (IsKeyPressed 12) ; minus (exclude) key pressed?
+		if iKey == 1 && iVal == 1 ; if already in exclusive list? ignore it
+			print "Already in Exclusive Filters, skipping..."
+			rPendingRef = 0
+			return
+		elseif iKey == 1 && iVal == 0 ; if already in list inclusive list, remove it first
+			print "Currently in Inclusive Filters, removing..."
+			Call rMBoxPipRemove 0  ;remove from eithner list without message box query (quick toggle mode)
+		endif
+		print "Adding item to Exclusive Filters..."
+		PlaySound UIPipBoyLightOff 1
+		Call rMBoxPipAdd 1  ; add to exclusive list without message box query (quick toggle mode)
+	elseif (IsKeyPressed 13) ; equals/plus (include) key pressed?
+		if iKey == 1 && iVal == 0 ; if already in inclusive list? ignore it
+			print "Already in Inclusive Filters, skipping..."
+			rPendingRef = 0
+			return
+		elseif iKey == 1 && iVal == 1 ; if already in list exclusive list, remove it first
+			print "Currently in Exclusive Filters, removing..."
+			Call rMBoxPipRemove 0  ;remove from eithner list without message box query (quick toggle mode)
+		endif
+		print "Adding item to Inclusive Filters..."
+		PlaySound UIPipBoyLightOn 1
+		Call rMBoxPipAdd 0  ; add to inclusive list without message box query (quick toggle mode)
+	elseif eval (float fWeight = GetWeight rPendingRef)
 		if player.HasPerk (GetFormFromMod "FalloutNV.esm" "14609B") ;Pack Rat perk
 			if fWeight <= 2
 				fWeight *= 0.5
