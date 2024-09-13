@@ -384,42 +384,51 @@ begin MenuMode
 			break
 		endif
 	loop
-	; TODO sounds "randomly" selected, not ideal, plus additional feedback might be helpulf for clarification & accessability
-	; TODO custom filters not refreshed in time, repeated attempts might repeat action (or at least sound etc.) without need
-	if (IsKeyPressed 11) ; item found in custom filters and 0 (remove) key pressed?
+	;printd "iKey: " + $(iKey) + ", iVal: " + $(iVal)
+	; TODO sound may be played twice due to maybe auto-repeat (key held a few ms too long), confusing and potentially causing undesired sideffects, add some kind of debounce
+   	if (IsKeyPressed 11) ;0 key pressed? REMOVE
 		if iKey == 1
-			print "Removing item from Custom Filters..."
-			PlaySound NVDLC04FXFlareImpact 1
+			printd "Removing item from Custom Filters..."
 			Call rMBoxPipRemove 0  ;remove from eithner list without message box query (quick toggle mode)
+			PlaySound DRSDumpsterClose 1
 		else
-			print "Unable to remove item from Custome Filters, not found..."
-			PlaySound NPCRobotEdEFail 1
-			rPendingRef = 0
+			printd "Unable to remove item from Custome Filters, not found..."
+			PlaySound UIMenuCancel 1
+			rPendingRef = 0 ; ensure it's cleared before returning
 		endif
-	elseif (IsKeyPressed 12) ; minus (exclude) key pressed?
-		if iKey == 1 && iVal == 1 ; if already in exclusive list? ignore it
-			print "Already in Exclusive Filters, skipping..."
-			rPendingRef = 0
-			return
-		elseif iKey == 1 && iVal == 0 ; if already in list inclusive list, remove it first
-			print "Currently in Inclusive Filters, removing..."
-			Call rMBoxPipRemove 0  ;remove from eithner list without message box query (quick toggle mode)
+		;rPendingRef = 0 ; ensure it's cleared in all cases so we don't get stuck
+	elseif (IsKeyPressed 12) ; minus key pressed? ADD to EXCLUDE
+		if iKey == 1
+			if iVal == 1
+				printd "Already in Exclusive Filters, skipping..."
+				PlaySound UIMenuCancel 1
+				rPendingRef = 0 ; ensure it's cleared before returning
+				return
+			else ; if already in list exclusive list with any other value, remove it first
+				printd "Currently in Inclusive Filters, removing..."
+				Call rMBoxPipRemove 0  ; remove from eithner list without message box query (quick toggle mode)
+			endif
 		endif
-		print "Adding item to Exclusive Filters..."
-		PlaySound UIPipBoyLightOff 1
+		printd "Adding item to Exclusive Filters..."
 		Call rMBoxPipAdd 1  ; add to exclusive list without message box query (quick toggle mode)
-	elseif (IsKeyPressed 13) ; equals/plus (include) key pressed?
-		if iKey == 1 && iVal == 0 ; if already in inclusive list? ignore it
-			print "Already in Inclusive Filters, skipping..."
-			rPendingRef = 0
-			return
-		elseif iKey == 1 && iVal == 1 ; if already in list exclusive list, remove it first
-			print "Currently in Exclusive Filters, removing..."
-			Call rMBoxPipRemove 0  ;remove from eithner list without message box query (quick toggle mode)
+		PlaySound UIHackingPassBad 1 ; UIPopUpMessageGeneral UIItemGenericDown
+		;rPendingRef = 0 ; ensure it's cleared in all cases so we don't get stuck
+	elseif (IsKeyPressed 13) ; equals/plus key pressed? ADD to INCLUDE
+		if iKey == 1
+			if iVal == 0 ; if already in inclusive list? ignore it
+				printd "Already in Inclusive Filters, skipping..."
+				PlaySound UIMenuCancel 1
+				rPendingRef = 0 ; ensure it's cleared before returning
+				return
+			else ; if already in list exclusive list with any other value, remove it first
+				printd "Currently in Exclusive Filters, removing..."
+				Call rMBoxPipRemove 0  ;remove from eithner list without message box query (quick toggle mode)
+			endif
 		endif
-		print "Adding item to Inclusive Filters..."
-		PlaySound UIPipBoyLightOn 1
+		printd "Adding item to Inclusive Filters..."
 		Call rMBoxPipAdd 0  ; add to inclusive list without message box query (quick toggle mode)
+		PlaySound UIHackingPassGood 1 ;UIPopUpMapMarkerAdded UIItemTakeAll
+		;rPendingRef = 0 ; ensure it's cleared in all cases so we don't get stuck
 	elseif eval (float fWeight = GetWeight rPendingRef)
 		if player.HasPerk (GetFormFromMod "FalloutNV.esm" "14609B") ;Pack Rat perk
 			if fWeight <= 2
