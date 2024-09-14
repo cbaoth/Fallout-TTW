@@ -1,7 +1,7 @@
 scn aicOnDrop
 begin Function {ref rOldOwner, ref rItemRef}
-    if (MenuMode 1002) ; dropped from pipboy inventory menu?
-        PrintD "AIC: OnDrop " + $(rItemRef) + " [RefFormId=" + $(GetFormIDString rItemRef) + ", BaseFormID=" + $(GetFormIDString (rItemRef.GetBaseObject)) + "] at [fTimeLastItemDrop=" + $(aicMain.fTimeLastItemDrop) + "]"
-		aicMain.fTimeLastItemDrop = GetSessionTime
+    if eval (MenuMode 1002) || ((MenuMode 1008) && ! rItemRef.GetContainer) ; dropped from pipboy inventory or container menu to ground?
+        PrintD "AIC: OnDrop " + $(rItemRef) + " [RefFormId=" + $(GetFormIDString rItemRef) + ", BaseFormID=" + $(GetFormIDString (rItemRef.GetBaseObject)) + ", TimeSincePreviousDrop=" + $(AuxTimerTimeElapsed "*OnDropGraceTimer") + "]"
+		AuxTimerStart "*OnDropGraceTimer" aicMain.fOnDropGracePeriod 1166 ; gamemode(2) & seconds(4) & autoremove(8) & pauseonpause(128) & notimemult(1024)
     endif
 end

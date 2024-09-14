@@ -12,7 +12,7 @@ array_var aActivatorFilter
 array_var aActorContainerFilter
 float fWeightThreshold
 float fValueWeightRatio
-float fTimeLastItemDrop
+float fOnDropGracePeriod
 ref rPendingRef
 int iPanelIdx
 int bToggled
@@ -46,7 +46,7 @@ int bControlDisabled
 int bCollectWorldItems
 begin GameMode
 	if GetGameRestarted
-SetDebugMode 0
+		SetDebugMode 0
 		SetEventHandler "OnCrosshairOn" aicOnCrosshairOn
 		SetEventHandler "OnDrop" aicOnDrop "first"::player
 		if eval (TypeOf (iHotkey = GetINIFloat "General:iHotkey" "Auto Item Collector.ini")) != "Number"
@@ -75,6 +75,7 @@ SetDebugMode 0
 	if eval (TypeOf (fValueWeightRatio = GetINIFloat "General:fValueWeightRatio" "Auto Item Collector.ini")) != "Number"
 		fValueWeightRatio = 100.00
 	endif
+	fOnDropGracePeriod = 3.0  ; TODO configurable, 3 seconds default
 	if eval (TypeOf (bAmmoGuns = GetINIFloat "Ammo:bAmmoGuns" "Auto Item Collector.ini")) != "Number"
 		bAmmoGuns = 0
 	endif
