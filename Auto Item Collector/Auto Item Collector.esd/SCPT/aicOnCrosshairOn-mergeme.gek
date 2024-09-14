@@ -26,13 +26,17 @@ begin Function {ref rCrosshairRef}
 	; 0: exc only (collect all unless excluded, also ignoring hard-coded filters)
 	short bUseCustomInclusiveFilter = 0
 
+	; try to collect all items from dead actors based on dropped weapons?
+	; idenpended of iKeyPickup setting (check done without world item pickup enabled)
+	short bFindCorpseByWeapon = 1
+
 	; pickup/activate world items only while modifier key is held down
 	; alt (56) / left control (29) / left shift (42) / right mouse (257)
 	; in case iKeyPickup is <= 0, world item pickup is always enabled
 	int iKeyPickup = 56
 	; invert iKeyPickup, hold down to temporarily prevent world item pickup,
 	; always on/off in case iKeyPickup is <= 0
-	short bKeyPickupInvert = 1
+	short bKeyPickupInvert = 0
 
 	; steal only while modifier key is held down
 	; in case iKeySteal is <= 0, stealing is always enabled
@@ -153,19 +157,33 @@ begin Function {ref rCrosshairRef}
 			PrintD "AIC: Projectile can't be picked up: " + $(rCrosshairRef)
 			return
 		endif
-	elseif eval (iKeyPickup <= 0 || (bKeyPickupInvert == 0 && (IsKeyPressed iKeyPickup) || (bKeyPickupInvert == 1 && ! (IsKeyPressed iKeyPickup)))) ; collect world items (modifier key held/released)?
-		PrintD "AIC: iType == " + $(iType)
-		PrintD "AIC: bCollectWorldItems enabled .."
-		if eval iType == 31 || iType == 41 || iType == 46 || iType == 47 || iType == 49 || iType == 25 || iType == 40 || iType == 24 ; misc, ammo, key, injestible, note, books, weapons, armor
+	elseif eval iType == 31 || iType == 41 || iType == 46 || iType == 47 || iType == 49 || iType == 25 || iType == 40 || iType == 24 ; misc, ammo, key, injestible, note, books, weapons, armor
+		; Collect inventory items from dead owners based in case this is a (potentially) dropped weapon, no matter if the weapon itself will be filtered or not
+		; TODO consider ash-piles if reasonable (not investigated, rarely using enrgy weapons)
+		if bFindCorpseByWeapon == 1 && iType == 40 ; reverse-loot enabled & (potentially dropped) weapon targeted?
+			array_var aLoadedActors = GetActorsByProcessingLevel 0
+			int iIdx := ar_Size aLoadedActors
+			while -1 < (iIdx -= 1)
+				ref rActor = aLoadedActors[iIdx]
+				if eval rActor.GetDead == 1 && (Ar_Find rCrosshairRef rActor.GetDroppedRefs) != Ar_BadNumericIndex
+					PrintD "AIC: Collecting all items from dead [" + $(rActor) + "] based on dropped weapon [" + $(rCrosshairRef) + "]..."
+					Call aicOnCrosshairOn rActor  ; get all items from dead owner as well
+					iIdx = -2
+					break
+				endif
+			loop
+			;if eval ! (IsReference rCrosshairRef)  ; weapon gone (collected above)?
+			if iIdx == -2 ; actor found? (weapon should be gone, if not presumably filtered)
+				return
+			endif
+		endif
+		; Collect regular world item if enabled & the appropriate key is held down/released
+		if eval (iKeyPickup <= 0 || (bKeyPickupInvert == 0 && (IsKeyPressed iKeyPickup) || (bKeyPickupInvert == 1 && ! (IsKeyPressed iKeyPickup))))
 			bTargetHasInventory = 0  ; single world item, no container
-			PrintD "AIC: Valid world item found: " + $(rCrosshairRef)
-			; Let's check this for individual items below (same for all items)
-			; if eval (rCrosshairRef.IsCrimeOrEnemy || (ref rOwner = rCrosshairRef.GetOwner)) && (iKeySteal > 0 && ! (IsKeyPressed iKeySteal)) && (iStealOnlyAtMaxDetectionState  >= 0 && (GetPCDetectionState > iStealOnlyAtMaxDetectionState))
-			; 	MessageEx "This is owned by %q%s%q and the stealing-hotkey is not pressed." (ToString rOwner)
-			; 	return
-			; endif
-			; TODO consider re-adding my previous GetOwner check, optionally also ignoring player owned items (e.g. to not pick up dropped/stashed items)
+			PrintD "AIC: Valid world item [" + $(rCrosshairRef) + ", iType=" + $(iType) + "] found..."
 			let aAllItems = Ar_List rCrosshairRef  ; single item to list
+		else
+			return ; not enabled or key not held down
 		endif
 	else
 		return
@@ -201,11 +219,12 @@ begin Function {ref rCrosshairRef}
 		endif
 		PrintD "aAllItems (" + $(rCrosshairRef) + "):" + $(aAllItems)
 	endif
-	if eval ((ar_Size aAllItems) < 1) ; no container/dropped items added above?
+	if eval (ar_Size aAllItems) < 1 ; no container/dropped items added above?
 		; return, nothing found
 		;MessageEx "AIC: No player item(s) found..." ; DEBUG
 		return
 	endif
+
 
 
 	PrintD "AIC: Past preconditions..."
@@ -409,23 +428,6 @@ begin Function {ref rCrosshairRef}
 	array_var aSkipped = ar_Construct array
 	float fFreeRoom = (player.GetActorValue CarryWeight) - (player.GetActorValue InventoryWeight)
 	iIdx = ar_Size aFilteredItems
-	; Collect inventory items from dead owners of a dropped weapon
-	; TODO add ash-pile support
-	if eval iIdx == 1 && (aFilteredItems[0].GetObjectType) == 40
-		forEach rActor <- (GetActorsByProcessingLevel 0)
-			if rActor.GetDead == 0
-				continue
-			endif
-			forEach rDroppedItem <- rActor.GetDroppedRefs
-				if rDroppedItem == aFilteredItems[0]
-					ref rWeapOwner = rActor.GetOwner
-					PrintD "AIC: Collecting items from dead owner [" + $(rWeapOwner) + "] of dropped weapon [" + $(aFilteredItems[0]) + "]..."
-					Call aicOnCrosshairOn rWeapOwner ; get all items from dead owner as well
-				endif
-			loop
-		loop
-	endif
-
 	while (iIdx -= 1) > -1
 		ref rFilteredItem = (aFilteredItems[iIdx])
 		string_var svItem = GetName rFilteredItem

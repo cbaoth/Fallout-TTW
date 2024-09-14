@@ -36,9 +36,9 @@ SetDebugMode 0 (GetModIndex "Auto Item Collector.esp")
   * At least try to ensure "fail/return fast" since crosshair checks are done all the time and the further we go the more resources are potentially wasted
 * Check terminology (maintainable code)
   * Comments, variable names, messages, etc. might be incorrect (not a modding expert, less so in my initial changes)
-* Consider looting corpses when a dropped weapon is targeted
-  * Basically the reverse of what is already done (pickup dropped weapon(s) when looting a corpse, since they appear in the inventory UI but are not covered by inventory functions)
-  * Hints: Check e.g. owner existing & dead (incl. ash pile) & in "close proximity" to the targeted item (just in case) & reverse-check GetDroppedRefs (just in case, avoid looting owner when collecting world-placed vs. dropped weapons)
+* <strike>Consider looting corpses when a dropped weapon is targeted</strike> done, todo:
+  * Consider ash-piles if easily possible (rarely use energy weapons, so I didn't look into this yet)
+  * Consider adding option to disable the feature in case it e.g. has a noticeable performance impact or is just not desired
 * Consider "monitoring" the dead-state of a currently targeted actor so that AIC will collect on-death vs. having to un- and re-target the actor to re-start the logic
 
 ### Low priority thoughts and ideas
@@ -48,3 +48,4 @@ SetDebugMode 0 (GetModIndex "Auto Item Collector.esp")
   * In such cases the "set ownership" feature is applied, even though the item is not actually transferred to the user's inventory, which doesn't seem appropriate (even if it may have no negative side-effects)
   * There may be other cases where this kind of interaction causes problems, at least in case inclusive and hard-coded filters are disabled
 * Consider removing all filters when auto-looting the addon/quest containers that give you back all your confiscated items & gear (e.g. *The Pitt*, *Mother Ship Zeta*, ...)
+* Consider auto-pickpocket feature, excluding equipped items (if even enabled) and potentially based on configurable min-chance value
