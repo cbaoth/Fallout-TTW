@@ -1,6 +1,8 @@
 # Auto Item Collector
 
-All props to the original author [ebizoe](https://www.nexusmods.com/newvegas/users/627838) of the [Auto Item Collector](https://www.nexusmods.com/newvegas/mods/77775) mod, I just made a few changes to suit my needs.
+All props to the original author [ebizoe](https://www.nexusmods.com/newvegas/users/627838) of the [Auto Item Collector](https://www.nexusmods.com/newvegas/mods/77775) mod.
+
+I just made a few changes to suit my needs as well as for the additional challenges & puzzles next to the actual game. This repo, my documentation, etc. are mainly intended for personal use *(myself)*, but I also like to share things just in case someone else finds stuff like this interesting / useful. All things considered, this is very specific to my personal setup and playstyle, usually written "on the fly" without much consideration for other scenarios / users, so please don't expect too much.
 
 ## Changelog
 
