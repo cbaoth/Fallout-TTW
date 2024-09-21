@@ -627,8 +627,8 @@ begin Function {ref rCrosshairRef}
 	endif
 	; TODO FIXME causes bug in ln_B42Loot.txt xll=array keys [] Array does not contain key
 	if rForB42Loot && aicMain.bB42Loot
-		; only show pickup animation for non-base types and non-activators (e.g. don't pickup whole plant/trap)
-		if eval ! (IsBaseForm rFilteredItem) && rFilteredItem.GetObjectType != 21
+		; skip pickup animation for activators (e.g. don't pickup whole plant/trap)
+		if eval (GetObjectType rFilteredItem) != 21
 			DispatchEventAlt "B42GV" rForB42Loot
 		endif
 	endif
