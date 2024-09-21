@@ -39,13 +39,16 @@ These are the changes I made to the scripts of the original mod:
   * Many graves and burial mounds are scripted requiring a shovel to open before they can be looted. They'll now be auto-opened & looted in case the PC has a shovel in its inventory. A message will be shown in case no shovel is needed but none was found.
   * In addition to the regular base-game `Shovel` the *Point Lookout DLC* `Fertilizer shovel` can be used too (not covered by all grave-scripts, but sensible).
 * Added filter list management (hotkey) features
-  * Added hotkey support to container menus
+  * Added hotkey support to container menu
+    * Mainly intended for the new quick-assign hotkeys below, since regular mouse interaction
   * Added left/right alt key as alternatives to the left mouse button (in conjunction with the filter-list management hotkey) to avoid transferring items to/from the container when clicking on them (simply use alt key now)
     * This also allows for keyboard-only interaction
-  * Added 3 new hotkeys to quickly add/remove items to/from the custom filter lists
+  * Added 3 new quick-assign hotkeys to add/remove items to/from the custom filter lists
     * Use hotkeys `alt 0/-/=` to `remove from inclusive/exclusive list` / `add to exclusive list` / `add to inclusive list`.
-    * This avoids the user the hassle of clicking through a lot of dialogs, especially to remove from one and add to another filter list, e.g. when you are like me and update your list irregularly & in bulk whenever I get back to my "home base".
-    * Acoustic feedback is given when adding/removing items to/from the filter lists, including a separate sound in case the desired state is already present so one can simply spam the hotkeys through the list without without any info/confirmation message boxes.
+    * Quickly (bulk) modify filters while scrolling through the various menus with a single key-combination per item
+    * No dialogues, one hotkey per filter option, auto-removal from the other list if needed
+    * Acoustic feedback is given, one sound per hotkey plus a generic error sound (desired already present)
+      * Not ideal in terms of accessibility, but UI messages are hidden in menus and this was the simplest way I could came up with to provide at least feedback
 * Added a "reverse corpse looting" feature
   * Similar to the more recent bethesda games, whenever the player targets a dropped weapon, AIC will (should) find the matching corpse and loot it as if the corpse itself was targeted.
   * This is usually not a huge deal, since corpses are mostly closer and large than the dropped weapons, but it's a nice feature to have e.g. when fighting on a catwalk, the weapon is still close to the player but the corpse has fallen down (maybe even inaccessible).
@@ -71,6 +74,8 @@ SetDebugMode 0 (GetModIndex "Auto Item Collector.esp")
   * Alternatively define reasonable defaults e.g. former defaults, enabled only via new hotkeys (bare minimum, config should follow asap)
   * Also consider adding UI tools to manage the activator filters, or at least provide add the ini file to the documentation for manual editing
     * *Note that items harvested/collected from activators bypass the custom filters, e.g. `Brain Fungus` is not collected directly but added to the PC inventory by an Activator script, so the (current) way would be to remove or comment the various activators like `TTWBrainFungusActivator` from the `AIC Activator Filter.ini` file*
+* Check all TODO comments in script and ini files
+  * Some might be outdated, some might be important
 * Testing ... of various scenarios/settings (vs. only my defaults)
 * Check all PrintDs
   * Some might be useless, generally inconsistent in style, or even invalid causing crashes (old debugging/learning stuff)
@@ -87,6 +92,8 @@ SetDebugMode 0 (GetModIndex "Auto Item Collector.esp")
 * <strike>Consider "reverse-looting" corpses by targeting a dropped weapon</strike> done, todo:
   * Consider ash-piles if easily possible (rarely use energy weapons, so I didn't look into this yet)
 * Consider "monitoring" the dead-state of a currently targeted actor so that AIC will collect on-death vs. having to un- and re-target the actor to re-start the logic
+* Re-evaluate quick-filter hotkeys, make them configurable
+  * E.g. think of `alt-q` on top of `q` item drop hotkey (*stevie* default), add to exclusive list and drop afterwards with a single key-combo for easy inventory de-cluttering
 
 ### Low priority thoughts and ideas
 
@@ -96,3 +103,4 @@ SetDebugMode 0 (GetModIndex "Auto Item Collector.esp")
   * There may be other cases where this kind of interaction causes problems, at least in case inclusive and hard-coded filters are disabled
 * Consider removing all filters when auto-looting the addon/quest containers that give you back all your confiscated items & gear (e.g. *The Pitt*, *Mother Ship Zeta*, ...)
 * Consider auto-pickpocket feature, excluding equipped items (if even enabled) and potentially based on configurable min-chance value
+* Consider auto-lockpick & loot feature for lock that unlock without showing the lock-picking screen due to [Stewie Tweaks](https://www.nexusmods.com/newvegas/mods/66347) `bSkipVeryEasyLocksAtMaxSkill = 1` setting
