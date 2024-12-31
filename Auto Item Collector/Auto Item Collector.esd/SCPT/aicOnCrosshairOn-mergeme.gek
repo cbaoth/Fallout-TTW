@@ -40,7 +40,8 @@ begin Function {ref rCrosshairRef}
 
 	; steal only while modifier key is held down
 	; in case iKeySteal is <= 0, stealing is always enabled
-	int iKeySteal = 257
+	;int iKeySteal = 257 ; right mouse button
+    int iKeySteal = 42  ; left shift
 	; invert iKeySteal (hold down to temporarily prevent stealing)
 	; always on/off in case iKeySteal is <= 0
 	short bKeyStealInvert = 0
@@ -625,7 +626,6 @@ begin Function {ref rCrosshairRef}
 	else
 		PlaySound (GetFormFromMod "FalloutNV.esm" "194E5") ; UIItemGenericUp
 	endif
-	; TODO FIXME causes bug in ln_B42Loot.txt xll=array keys [] Array does not contain key
 	if rForB42Loot && aicMain.bB42Loot
 		; skip pickup animation for activators (e.g. don't pickup whole plant/trap)
 		if eval (GetObjectType rFilteredItem) != 21

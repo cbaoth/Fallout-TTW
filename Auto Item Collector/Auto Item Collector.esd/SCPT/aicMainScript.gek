@@ -330,6 +330,7 @@ begin MenuMode
 	endif
 	if eval (int iMenuCode = GetActiveMenuMode) == 1002 ;Inventory
 	elseif iMenuCode == 1077 ;Recipe
+	;elseif iMenuCode == 1053 ;Barter
 	elseif iMenuCode == 1008 ;Container
 	elseif iMenuCode == 1001 ;Message
 	else
@@ -385,7 +386,6 @@ begin MenuMode
 			break
 		endif
 	loop
-	;printd "iKey: " + $(iKey) + ", iVal: " + $(iVal)
 	; TODO sound may be played twice due to maybe auto-repeat (key held a few ms too long), confusing and potentially causing undesired sideffects, add some kind of debounce
    	if (IsKeyPressed 11) ;0 key pressed? REMOVE
 		if iKey == 1
