@@ -137,6 +137,12 @@ SetWeaponSound DLC02WeapSniperRifle 11 WPNRifleVarmintModFire2D
 ;}}} - END: Weapons ---------------------------------------------------------
 ;}}} = END: Items ===========================================================
 
+;{{{ = NPCs =================================================================
+; TODO make bullet-sponges easier to kill (balance vs. other tough looking but much easier to kill creatures etc.)
+; loop over level lists? ...
+;bIsBulletSponge = (sv_RegexMatch (GetEditorID rHSTarb) ".*(radscorpion).*") == 1
+;}}} = END: NPCs ===========================================================
+
 ;{{{ = Event Handlers =======================================================
 ;{{{ - Auto-own on pick-up --------------------------------------------------
 Print "Adding [Own on Pick-Up]..."
