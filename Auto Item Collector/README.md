@@ -97,6 +97,7 @@ SetDebugMode 0 (GetModIndex "Auto Item Collector.esp")
 
 ### Low priority thoughts and ideas
 
+* BUG: Pickup animation not shown for world items, only for containers (to be verified if still the case)
 * Consider special handling for world-items with onActivate scripts (vs. Activators), e.g. `Plick's Journal` `DLC04FF06PliksJournal` shows a `Read & Get Perk` OR `Cancel` dialogue
   * This particular item stays after activation, so one can still "pick it up", pickup animation shown etc. even without this mod, so this is "normal" and may not need special handling
   * In such cases the "set ownership" feature is applied, even though the item is not actually transferred to the user's inventory, which doesn't seem appropriate (even if it may have no negative side-effects)
