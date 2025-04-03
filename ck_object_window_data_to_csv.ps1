@@ -61,21 +61,15 @@ function Get-TableData {
         return
     }
 
-    # # Extract column headers
-    # $headers = $list.FindFirst([System.Windows.Automation.TreeScope]::Children, [New-Object System.Windows.Automation.PropertyCondition]([System.Windows.Automation.AutomationElement]::ControlTypeProperty, [System.Windows.Automation.ControlType]::Header))
-    # $headerColumns = $headers.FindAll([System.Windows.Automation.TreeScope]::Children, [System.Windows.Automation.Condition]::TrueCondition)
-    # $headerNames = @()
-    # foreach ($headerColumn in $headerColumns) {
-    #     $headerNames += $headerColumn.Current.Name -replace ' ', ''
-    # }
-
     # Extract data from the list
     $conditionTrue = [System.Windows.Automation.Condition]::TrueCondition
     $listItems = $list.FindAll([System.Windows.Automation.TreeScope]::Children, $conditionTrue)
     $data = @()
-    #$data += [PSCustomObject]@{ Row = $headerNames -join ";" }
+
+    # Extract table column headers
     $data += ($headerNames -join ";")
 
+    # Extract all table entries
     foreach ($item in $listItems) {
         $columns = $item.FindAll([System.Windows.Automation.TreeScope]::Children, $conditionTrue)
         $rowData = @()
@@ -112,7 +106,7 @@ $processId = (Get-Process | Where-Object { $_.MainWindowTitle -like "*Creation K
 #    Inspector (here under App > Window > List) and look for "AutomationId:".
 $listAutomationId = "1041"  # Replace with the actual AutomationId
 
-# fail in case of missing processId
+# Fail in case of missing processId
 if ($processId -eq $null) {
     Write-Host "Process ID not found or set."
     return
@@ -124,11 +118,10 @@ Write-Host "Processing data..."
 $tableData = Get-TableData -processId $processId -listAutomationId $listAutomationId
 Write-Host "Data extracted."
 
-$outFile = "get-text-from-table_" + (Get-Date -Format "yyyy-MM-dd_HH-mm-ss") + ".csv"
+$outFile = "ck_object_window_data_export_" + (Get-Date -Format "yyyy-MM-dd_HH-mm-ss") + ".csv"
 Write-Host "Writing data to file: $outFile"
 
 # Output the data to a CSV file
-#$tableData | Export-Csv -Path "get-text-from-table.csv" -NoTypeInformation
 $tableData | Out-File -FilePath $outFile -Encoding utf8
 
 Write-Host "Data written to file: $outFile"
